@@ -1,0 +1,46 @@
+/*
+ * Единая светлая тёплая тема (SPEC, раздел 5).
+ * ✅ Палитра утверждена автором (SPEC 3.2): меняйте значения только здесь и только с согласия автора.
+ */
+:root {
+  /* Основа */
+  --bg: #f8f8f4;
+  --surface: #ffffff;
+  --surface-soft: #f1f3ec;
+  --text: #1d221f;
+  --text-muted: #6c736d;
+  --border: #e6e8e1;
+
+  /* Акценты: небольшие салатовые и изумрудные */
+  --emerald: #109b68;
+  --emerald-soft: #e3f4ec;
+  --lime: #8fcf4a;
+  --lime-soft: #eef8e2;
+
+  /* Фирменный оранжевый персонажа */
+  --orange: #ff8a1f;
+  --orange-soft: #fff1e2;
+
+  /* Цвета вердиктов (смысловые, всегда вместе со словом и иконкой) */
+  --verdict-yes: #109b68;
+  --verdict-compromise: #9cbf2e;
+  --verdict-wait: #f0a312;
+  --verdict-no: #dd7a69;
+
+  /* Категории */
+  --cat-1: #ff8a1f;
+  --cat-2: #109b68;
+  --cat-3: #8fcf4a;
+  --cat-4: #dd7a69;
+  --cat-5: #b57be0;
+  --cat-6: #f0a312;
+  --cat-7: #9aa29b;
+
+  /* Форма */
+  --radius-card: 22px;
+  --radius-pill: 999px;
+  --shadow-card: 0 1px 2px rgb(29 34 31 / 0.04), 0 6px 20px rgb(29 34 31 / 0.05);
+
+  --font: 'Manrope Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --nav-height: 68px;
+}
