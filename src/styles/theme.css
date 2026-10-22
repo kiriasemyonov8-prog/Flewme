@@ -1,46 +1,50 @@
 /*
  * Единая светлая тёплая тема (SPEC, раздел 5).
- * ✅ Палитра утверждена автором (SPEC 3.2): меняйте значения только здесь и только с согласия автора.
+ * ✅ Палитра утверждена автором (SPEC 3.2, зелёный и фон обновлены в 3.18): меняйте значения только здесь и только с согласия автора.
  */
 :root {
-  /* Основа */
-  --bg: #f8f8f4;
+  /* Основа (SPEC 3.18: фон чуть темнее, чтобы белые карточки и кнопки были видны) */
+  --bg: #eceee6;
   --surface: #ffffff;
-  --surface-soft: #f1f3ec;
+  --surface-soft: #eef1e8;
   --text: #1d221f;
-  --text-muted: #6c736d;
-  --border: #e6e8e1;
+  --text-muted: #646c63;
+  --border: #dfe3d8;
 
-  /* Акценты: небольшие салатовые и изумрудные */
-  --emerald: #109b68;
-  --emerald-soft: #e3f4ec;
-  --lime: #8fcf4a;
-  --lime-soft: #eef8e2;
+  /* Акценты: шалфейно-зелёные в тон фона персонажа (SPEC 3.18; стена комнаты #97A778) */
+  --emerald: #5f7d45;
+  --emerald-soft: #e2ead5;
+  --emerald-ink: #3f5530;
+  --lime: #a5bd78;
+  --lime-soft: #edf2e3;
+
+  /* Цвет рукописных мыслей Флюми на фоне комнаты */
+  --thought-ink: #2f4223;
 
   /* Фирменный оранжевый персонажа */
   --orange: #ff8a1f;
   --orange-soft: #fff1e2;
 
   /* Цвета вердиктов (смысловые, всегда вместе со словом и иконкой) */
-  --verdict-yes: #109b68;
+  --verdict-yes: #5f7d45;
   --verdict-compromise: #9cbf2e;
   --verdict-wait: #f0a312;
   --verdict-no: #dd7a69;
 
   /* Категории */
   --cat-1: #ff8a1f;
-  --cat-2: #109b68;
-  --cat-3: #8fcf4a;
+  --cat-2: #5f7d45;
+  --cat-3: #a5bd78;
   --cat-4: #dd7a69;
   --cat-5: #b57be0;
   --cat-6: #f0a312;
   --cat-7: #9aa29b;
 
-  /* Фон-градиент (SPEC 3.4): мягкий салатовый сверху, тёплый оранжевый снизу */
+  /* Фон-градиент (SPEC 3.4, 3.18): шалфейный сверху, тёплый оранжевый снизу, чуть темнее белого */
   --bg-gradient:
-    radial-gradient(120% 60% at 0% 0%, #e6f6d6 0%, rgb(230 246 214 / 0) 60%),
-    radial-gradient(90% 50% at 100% 100%, #ffe8d1 0%, rgb(255 232 209 / 0) 65%),
-    linear-gradient(180deg, #f4f9ee 0%, #f8f8f4 45%, #fbf6ef 100%);
+    radial-gradient(120% 60% at 0% 0%, #d9e4c9 0%, rgb(217 228 201 / 0) 60%),
+    radial-gradient(90% 50% at 100% 100%, #f3dcc4 0%, rgb(243 220 196 / 0) 65%),
+    linear-gradient(180deg, #e7ecdf 0%, #eceee6 45%, #efebe3 100%);
 
   /* Liquid glass для кнопок и полей */
   --glass-bg: rgb(255 255 255 / 0.5);
@@ -51,7 +55,7 @@
     inset 0 1px 1px rgb(255 255 255 / 0.95),
     inset 0 -1px 1px rgb(29 34 31 / 0.05);
   --glass-sheen: linear-gradient(180deg, rgb(255 255 255 / 0.55) 0%, rgb(255 255 255 / 0) 55%);
-  --glass-primary-bg: rgb(16 155 104 / 0.85);
+  --glass-primary-bg: rgb(95 125 69 / 0.9);
 
   /* Форма */
   --radius-card: 22px;

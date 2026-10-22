@@ -1,6 +1,6 @@
 import { CalendarDays, MessageCircle, Wallet } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
-import { Robot } from '../assets/character';
+import { characterBackground, Robot } from '../assets/character';
 import { spentTodayMain } from '../core/balance';
 import { addDays, diffDays, type ISODate } from '../core/dates';
 import { closedStreak, isBalanceStale, isClosed, unclosedDays } from '../core/days';
@@ -13,7 +13,6 @@ import type { ChatStore } from '../state/useChat';
 import type { FinanceStore } from '../state/useFinance';
 import { ChatInput, ChatThread } from '../ui/Chat';
 import { DemoBadge } from '../ui/DemoBadge';
-import { ThoughtCloud } from '../ui/ThoughtCloud';
 import { CloseDaySheet } from './home/CloseDaySheet';
 import { ExpenseSheet } from './home/ExpenseSheet';
 import { IncomeSheet } from './home/IncomeSheet';
@@ -24,7 +23,8 @@ type SheetState =
   | { kind: 'income' }
   | { kind: 'close'; date: ISODate };
 
-const ROBOT_ICON = 48;
+/** Высота Флюми, когда он уменьшается в иконку чата. */
+const ROBOT_ICON = 64;
 
 /** Порядковый номер для каскадной анимации «улёта» вверх. */
 const fly = (i: number) => ({ '--i': i }) as CSSProperties;
@@ -64,7 +64,7 @@ export function HomeScreen({
     }
     window.scrollTo({ top: 0 });
     const r = robotRef.current.getBoundingClientRect();
-    setRobotShift(`translate(${16 - r.left}px, ${16 - r.top}px) scale(${ROBOT_ICON / r.width})`);
+    setRobotShift(`translate(${16 - r.left}px, ${16 - r.top}px) scale(${ROBOT_ICON / r.height})`);
     const c = chatRef.current.getBoundingClientRect();
     const navTop = document.querySelector('.nav')?.getBoundingClientRect().top ?? window.innerHeight;
     setChatShift(`translateY(${navTop - 14 - c.bottom}px)`);
@@ -198,22 +198,26 @@ export function HomeScreen({
         </div>
       )}
 
-      <div className="robot-zone">
-        <div
-          ref={robotRef}
-          className="robot-wrap"
-          style={{ transform: robotShift }}
-        >
+      {/* Сцена: фон комнаты, Флюми на нём (как на референсе IMG_2987), мысли рукописным текстом справа. */}
+      <div className="scene">
+        <div className="scene-bg fly" style={fly(2)}>
+          <img src={characterBackground} alt="" draggable={false} />
+          <div className="scene-thought" aria-live="polite">
+            <p>{phrase}</p>
+            <svg className="scene-arrow" viewBox="0 0 60 34" aria-hidden="true">
+              <path d="M54 4 C 44 22, 26 28, 8 24" />
+              <path d="M16 16 L 7 24 L 17 30" />
+            </svg>
+          </div>
+        </div>
+        <div ref={robotRef} className="robot-wrap scene-robot" style={{ transform: robotShift }}>
           {chat ? (
             <button type="button" className="robot-btn" aria-label="Вернуться на главную" onClick={() => setChat(false)}>
-              <Robot expression={mood} size={140} />
+              <Robot expression={mood} />
             </button>
           ) : (
-            <Robot expression={mood} size={140} />
+            <Robot expression={mood} />
           )}
-        </div>
-        <div className="fly" style={fly(2)}>
-          <ThoughtCloud text={phrase} />
         </div>
       </div>
 

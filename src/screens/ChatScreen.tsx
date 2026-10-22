@@ -1,6 +1,6 @@
 // Чат, открытый из раздела по иконке Флюми. Повторное нажатие на иконку возвращает в раздел.
 import { useEffect, useRef } from 'react';
-import { Robot } from '../assets/character';
+import { RobotHead } from '../assets/character';
 import type { Mood } from '../core/mood';
 import type { ChatStore } from '../state/useChat';
 import { ChatInput, ChatThread } from '../ui/Chat';
@@ -15,7 +15,7 @@ export function ChatScreen({ chat, mood, onBack }: { chat: ChatStore; mood: Mood
   return (
     <section className="chat-screen" aria-label="Чат с Флюми">
       <button type="button" className="flyumi-icon" aria-label="Вернуться в раздел" onClick={onBack}>
-        <Robot expression={mood} size={44} />
+        <RobotHead expression={mood} />
       </button>
       <div className="chat-panel">
         <ChatThread chat={chat} />
@@ -32,7 +32,7 @@ export function SectionHeader({ mood, isDemo, onOpenChat }: { mood: Mood; isDemo
   return (
     <div className="section-header">
       <button type="button" className="flyumi-icon" aria-label="Открыть чат с Флюми" onClick={onOpenChat}>
-        <Robot expression={mood} size={44} />
+        <RobotHead expression={mood} />
       </button>
       {isDemo && <DemoBadge />}
     </div>

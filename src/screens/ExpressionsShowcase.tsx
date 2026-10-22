@@ -6,11 +6,11 @@ export function ExpressionsShowcase() {
   return (
     <main className="screen">
       <h1 className="screen-title">Выражения Флюми</h1>
-      <p className="hint">Временные заглушки. Когда придут файлы автора, они заменят эти рисунки.</p>
+      <p className="hint">Файлы автора из docs/character.</p>
       <div className="showcase">
         {(Object.keys(EXPRESSION_LABELS) as Expression[]).map((e) => (
           <figure key={e} className="card showcase-item">
-            <Robot expression={e} size={110} />
+            <Robot expression={e} height={150} />
             <figcaption>{EXPRESSION_LABELS[e]}</figcaption>
           </figure>
         ))}
