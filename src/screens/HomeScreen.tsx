@@ -1,4 +1,5 @@
-import { CalendarDays, MessageCircle, Wallet } from 'lucide-react';
+import { ArrowUp, CalendarDays, MessageCircle, Wallet } from 'lucide-react';
+import { demoAssistant } from '../ai/assistant';
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { Robot } from '../assets/character';
 import { spentTodayMain } from '../core/balance';
@@ -29,19 +30,39 @@ export function HomeScreen({ store, homeSignal }: { store: FinanceStore; homeSig
   const [sheet, setSheet] = useState<SheetState>(null);
   const [chat, setChat] = useState(false);
   const [robotShift, setRobotShift] = useState<string | undefined>();
+  const [chatShift, setChatShift] = useState<string | undefined>();
+  const [question, setQuestion] = useState('');
+  const [messages, setMessages] = useState<{ from: 'user' | 'flyumi'; text: string }[]>([]);
   const robotRef = useRef<HTMLDivElement>(null);
+  const chatRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // Нажатие на «Главная» в навигации возвращает экран из режима чата.
   useEffect(() => setChat(false), [homeSignal]);
 
-  // Робот уменьшается в иконку слева сверху: считаем сдвиг от его обычного места.
+  // Робот уменьшается в иконку слева сверху, поле чата опускается к нижней навигации.
   useLayoutEffect(() => {
-    if (!chat || !robotRef.current) return setRobotShift(undefined);
+    if (!chat || !robotRef.current || !chatRef.current) {
+      setRobotShift(undefined);
+      setChatShift(undefined);
+      return;
+    }
     window.scrollTo({ top: 0 });
     const r = robotRef.current.getBoundingClientRect();
-    const scale = ROBOT_ICON / r.width;
-    setRobotShift(`translate(${16 - r.left}px, ${16 - r.top}px) scale(${scale})`);
+    setRobotShift(`translate(${16 - r.left}px, ${16 - r.top}px) scale(${ROBOT_ICON / r.width})`);
+    const c = chatRef.current.getBoundingClientRect();
+    const navTop = document.querySelector('.nav')?.getBoundingClientRect().top ?? window.innerHeight;
+    setChatShift(`translateY(${navTop - 14 - c.bottom}px)`);
+    inputRef.current?.focus({ preventScroll: true });
   }, [chat]);
+
+  function ask(e: React.FormEvent) {
+    e.preventDefault();
+    const text = question.trim();
+    if (!text) return;
+    setMessages((m) => [...m, { from: 'user', text }, { from: 'flyumi', text: demoAssistant.reply(text) }]);
+    setQuestion('');
+  }
 
   const spent = spentTodayMain(data, today);
   const remaining = limit.status === 'ok' ? remainingToday(limit.dailyLimit, spent) : null;
@@ -125,14 +146,16 @@ export function HomeScreen({ store, homeSignal }: { store: FinanceStore; homeSig
         >
           {chat ? (
             <button type="button" className="robot-btn" aria-label="Вернуться на главную" onClick={() => setChat(false)}>
-              <Robot expression={mood} size={150} />
+              <Robot expression={mood} size={140} />
             </button>
           ) : (
-            <Robot expression={mood} size={150} />
+            <Robot expression={mood} size={140} />
           )}
         </div>
-        <div className="bubble fly" style={fly(2)} aria-live="polite">
-          {phrase}
+        <div className="thought fly" style={fly(2)} aria-live="polite">
+          <div className="thought-cloud">{phrase}</div>
+          <span className="thought-dot d1" aria-hidden />
+          <span className="thought-dot d2" aria-hidden />
         </div>
       </div>
 
@@ -157,18 +180,43 @@ export function HomeScreen({ store, homeSignal }: { store: FinanceStore; homeSig
         )}
       </div>
 
-      <button type="button" className="chat-strip fly" style={fly(5)} onClick={() => setChat(true)}>
-        <MessageCircle size={20} aria-hidden />
-        <span>Спросить Флюми</span>
-      </button>
+      <div ref={chatRef} className="chat-box" style={{ transform: chatShift }}>
+        {chat ? (
+          <form className="chat-form glass" onSubmit={ask}>
+            <MessageCircle size={20} aria-hidden />
+            <input
+              ref={inputRef}
+              value={question}
+              onChange={(e) => setQuestion(e.target.value)}
+              placeholder="Спросить Флюми"
+              aria-label="Вопрос Флюми"
+              enterKeyHint="send"
+            />
+            <button type="submit" className="send-btn" aria-label="Отправить">
+              <ArrowUp size={20} />
+            </button>
+          </form>
+        ) : (
+          <button type="button" className="chat-strip glass" onClick={() => setChat(true)}>
+            <MessageCircle size={20} aria-hidden />
+            <span>Спросить Флюми</span>
+          </button>
+        )}
+      </div>
 
       {chat && (
         <section className="chat-panel" aria-label="Чат с Флюми">
-          <div className="chat-msg">
-            Я пока учусь. На типовые вопросы о лимите и покупках начну отвечать на шаге 6, ответы будут с пометкой
-            «демо».
-          </div>
-          <p className="hint">Нажмите на меня слева сверху, чтобы вернуться.</p>
+          {messages.length === 0 && (
+            <div className="chat-msg">
+              Спросите что-нибудь, а я отвечу. Это демо: пока я только учусь. Чтобы вернуться, нажмите на меня слева
+              сверху.
+            </div>
+          )}
+          {messages.map((m, i) => (
+            <div key={i} className={`chat-msg${m.from === 'user' ? ' from-user' : ''}`}>
+              {m.text}
+            </div>
+          ))}
         </section>
       )}
 
