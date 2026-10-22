@@ -1,5 +1,6 @@
 import { CircleAlert, CircleCheck, CircleHelp, Hourglass, Scale, type LucideIcon } from 'lucide-react';
 import { useState } from 'react';
+import { Robot, type Expression } from '../assets/character';
 import { CONFIG } from '../core/config';
 import { diffDays } from '../core/dates';
 import { formatDayMonth, formatPermille, formatRub, formatRubWhole, parseRubInput } from '../core/format';
@@ -18,12 +19,13 @@ import { Segmented } from '../ui/Form';
 import { AmountDisplay, Keypad } from '../ui/Keypad';
 import { approxDuration } from './finance/GoalSheets';
 
-const VERDICTS: Record<Verdict, { word: string; Icon: LucideIcon; color: string }> = {
-  yes: { word: 'Можно', Icon: CircleCheck, color: 'var(--verdict-yes)' },
-  compromise: { word: 'Можно, но с компромиссом', Icon: Scale, color: 'var(--verdict-compromise)' },
-  wait: { word: 'Лучше подождать', Icon: Hourglass, color: 'var(--verdict-wait)' },
-  no: { word: 'Не стоит', Icon: CircleAlert, color: 'var(--verdict-no)' },
-  unknown: { word: 'Вывод сделать нельзя', Icon: CircleHelp, color: 'var(--text-muted)' },
+// Выражение робота: «Не стоит» → забота (✅); остальные — черновые соответствия (🧪 SPEC, раздел 6).
+const VERDICTS: Record<Verdict, { word: string; Icon: LucideIcon; color: string; face: Expression }> = {
+  yes: { word: 'Можно', Icon: CircleCheck, color: 'var(--verdict-yes)', face: 'confident' },
+  compromise: { word: 'Можно, но с компромиссом', Icon: Scale, color: 'var(--verdict-compromise)', face: 'thoughtful' },
+  wait: { word: 'Лучше подождать', Icon: Hourglass, color: 'var(--verdict-wait)', face: 'calm' },
+  no: { word: 'Не стоит', Icon: CircleAlert, color: 'var(--verdict-no)', face: 'care' },
+  unknown: { word: 'Вывод сделать нельзя', Icon: CircleHelp, color: 'var(--text-muted)', face: 'thoughtful' },
 };
 
 function sourceKey(s: PurchaseSource): string {
@@ -139,12 +141,15 @@ export function PurchaseScreen({ store }: { store: FinanceStore }) {
       ) : (
         <>
           <section className="card verdict-card" style={{ borderColor: VERDICTS[result.verdict].color }}>
-            <div className="verdict-head" style={{ color: VERDICTS[result.verdict].color }}>
-              {(() => {
-                const V = VERDICTS[result.verdict].Icon;
-                return <V size={26} aria-hidden />;
-              })()}
-              <span>{VERDICTS[result.verdict].word}</span>
+            <div className="verdict-top">
+              <div className="verdict-head" style={{ color: VERDICTS[result.verdict].color }}>
+                {(() => {
+                  const V = VERDICTS[result.verdict].Icon;
+                  return <V size={26} aria-hidden />;
+                })()}
+                <span>{VERDICTS[result.verdict].word}</span>
+              </div>
+              <Robot expression={VERDICTS[result.verdict].face} size={64} />
             </div>
             <div className="verdict-price num">{formatRub(result.price)}</div>
             <p className="verdict-text">{explain(result, data)}</p>

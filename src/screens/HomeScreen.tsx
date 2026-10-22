@@ -1,10 +1,10 @@
 import { ArrowUp, CalendarDays, MessageCircle, Wallet } from 'lucide-react';
-import { demoAssistant } from '../ai/assistant';
+import { demoAssistant, TYPICAL_QUESTIONS } from '../ai/assistant';
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { Robot } from '../assets/character';
 import { spentTodayMain } from '../core/balance';
-import { addDays, type ISODate } from '../core/dates';
-import { closedStreak, isClosed } from '../core/days';
+import { addDays, diffDays, type ISODate } from '../core/dates';
+import { closedStreak, isBalanceStale, isClosed, unclosedDays } from '../core/days';
 import { formatDayMonth, formatRubWhole, formatRubWholeUp, pluralDays } from '../core/format';
 import { remainingToday } from '../core/limit';
 import { robotMood } from '../core/mood';
@@ -43,13 +43,22 @@ export function HomeScreen({
   const [robotShift, setRobotShift] = useState<string | undefined>();
   const [chatShift, setChatShift] = useState<string | undefined>();
   const [question, setQuestion] = useState('');
+  const [dismissed, setDismissed] = useState<string[]>([]);
   const [messages, setMessages] = useState<{ from: 'user' | 'flyumi'; text: string }[]>([]);
   const robotRef = useRef<HTMLDivElement>(null);
   const chatRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+
+  // Новые сообщения всегда видны.
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ block: 'end' });
+  }, [messages]);
 
   // Нажатие на «Главная» в навигации возвращает экран из режима чата.
-  useEffect(() => setChat(false), [homeSignal]);
+  useEffect(() => {
+    setChat(false);
+  }, [homeSignal]);
 
   // Робот уменьшается в иконку слева сверху, поле чата опускается к нижней навигации.
   useLayoutEffect(() => {
@@ -67,12 +76,18 @@ export function HomeScreen({
     inputRef.current?.focus({ preventScroll: true });
   }, [chat]);
 
+  function send(text: string) {
+    const q = text.trim();
+    if (!q) return;
+    const reply = demoAssistant.reply(q, { data, today, limit });
+    if (reply.expense) store.addExpense(reply.expense);
+    setMessages((m) => [...m, { from: 'user', text: q }, { from: 'flyumi', text: reply.text }]);
+    setQuestion('');
+  }
+
   function ask(e: React.FormEvent) {
     e.preventDefault();
-    const text = question.trim();
-    if (!text) return;
-    setMessages((m) => [...m, { from: 'user', text }, { from: 'flyumi', text: demoAssistant.reply(text) }]);
-    setQuestion('');
+    send(question);
   }
 
   const spent = spentTodayMain(data, today);
@@ -81,6 +96,43 @@ export function HomeScreen({
   const yesterdayOpen = yesterday >= data.startedOn && !isClosed(data, yesterday);
   const todayClosed = isClosed(data, today);
   const streak = closedStreak(data, today);
+
+  // Напоминания внутри приложения при открытии (SPEC, раздел 12): не больше одного за раз,
+  // мягко и без давления. «Позже» скрывает его до следующего открытия.
+  const missed = unclosedDays(data, data.startedOn, today);
+  const staleDays = data.accounts.some((a) => a.kind === 'main') && isBalanceStale(data, today)
+    ? diffDays(data.accounts.find((a) => a.kind === 'main')!.asOf, today)
+    : 0;
+  const now = new Date();
+  const nowTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+  const eveningDue = data.settings.reminderEnabled && !todayClosed && nowTime >= data.settings.reminderTime;
+  const reminder: { key: string; text: string; action: string; run: () => void } | null =
+    missed.length > 0
+      ? {
+          key: `missed-${missed[0]}`,
+          text:
+            missed.length > 1
+              ? `Как прошли последние дни? Запишем траты за ${missed.length} ${pluralDays(missed.length)}, это займёт пару минут.`
+              : 'Как прошёл вчерашний день? Запишем траты, это займёт минуту.',
+          action: 'Записать',
+          run: () => setSheet({ kind: 'close', date: missed[missed.length - 1] }),
+        }
+      : staleDays > 0
+        ? {
+            key: 'stale',
+            text: `Остаток основного счёта не обновлялся ${staleDays} ${pluralDays(staleDays)}. Обновим, чтобы лимит был точнее?`,
+            action: 'Обновить',
+            run: onOpenProfile,
+          }
+        : eveningDue
+          ? {
+              key: `evening-${today}`,
+              text: 'Как прошёл день? Запишем траты и закроем его — это займёт минуту.',
+              action: 'Закрыть день',
+              run: () => setSheet({ kind: 'close', date: today }),
+            }
+          : null;
+  const showReminder = reminder && !dismissed.includes(reminder.key);
 
   let mood = robotMood(spent, limit.status === 'ok' ? limit.dailyLimit : spent);
   let phrase: string;
@@ -107,12 +159,17 @@ export function HomeScreen({
         </div>
       )}
 
-      {yesterdayOpen && (
-        <div className="card notice fly" style={fly(1)}>
-          <span>Как прошёл вчерашний день? Запишем траты, это займёт минуту.</span>
-          <button type="button" className="btn btn-secondary" onClick={() => setSheet({ kind: 'close', date: yesterday })}>
-            Записать
-          </button>
+      {showReminder && (
+        <div className="card notice reminder fly" style={fly(1)}>
+          <span>{reminder.text}</span>
+          <div className="reminder-actions">
+            <button type="button" className="btn btn-primary" onClick={reminder.run}>
+              {reminder.action}
+            </button>
+            <button type="button" className="link-btn" onClick={() => setDismissed((d) => [...d, reminder.key])}>
+              Позже
+            </button>
+          </div>
         </div>
       )}
 
@@ -228,16 +285,28 @@ export function HomeScreen({
       {chat && (
         <section className="chat-panel" aria-label="Чат с Флюми">
           {messages.length === 0 && (
-            <div className="chat-msg">
-              Спросите что-нибудь, а я отвечу. Это демо: пока я только учусь. Чтобы вернуться, нажмите на меня слева
-              сверху.
-            </div>
+            <>
+              <div className="chat-msg">
+                Спросите про лимит, зарплату или покупку — отвечу с настоящими числами и покажу, откуда они. Чтобы
+                вернуться, нажмите на меня слева сверху.
+                <span className="demo-tag">демо</span>
+              </div>
+              <div className="chips">
+                {TYPICAL_QUESTIONS.map((q) => (
+                  <button key={q} type="button" className="chip" onClick={() => send(q)}>
+                    {q}
+                  </button>
+                ))}
+              </div>
+            </>
           )}
           {messages.map((m, i) => (
             <div key={i} className={`chat-msg${m.from === 'user' ? ' from-user' : ''}`}>
               {m.text}
+              {m.from === 'flyumi' && <span className="demo-tag">демо</span>}
             </div>
           ))}
+          <div ref={chatEndRef} />
         </section>
       )}
 

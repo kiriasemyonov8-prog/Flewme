@@ -253,6 +253,17 @@
   padding: 8px 0 0;
 }
 
+.reminder {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.reminder-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .robot-wrap {
   position: relative;
   z-index: 5;
@@ -406,6 +417,28 @@
   box-shadow: var(--shadow-card);
   font-size: 15px;
   line-height: 1.45;
+}
+
+.chat-msg {
+  white-space: pre-line;
+}
+
+.demo-tag {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--orange-soft);
+  color: #a3500a;
+  font-size: 11px;
+  font-weight: 700;
+  vertical-align: middle;
+}
+
+.chat-panel .chips .chip {
+  min-height: 36px;
+  font-size: 13px;
+  text-align: left;
 }
 
 .chat-msg.from-user {
@@ -628,6 +661,22 @@
   border-top: 1px solid var(--border);
 }
 
+/* Витрина выражений */
+.showcase {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.showcase-item {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+}
+
 /* Финансы и цели */
 .big-card {
   display: flex;
@@ -777,6 +826,13 @@
   flex-direction: column;
   gap: 8px;
   border: 2px solid;
+}
+
+.verdict-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 .verdict-head {
