@@ -79,11 +79,11 @@ export function HomeScreen({ store, homeSignal }: { store: FinanceStore; homeSig
   } else if (limit.noFreeMoney) {
     phrase = 'По вашим данным свободных денег до дохода нет.';
   } else if (mood === 'calm') {
-    phrase = `Сегодня трат пока нет. Можно до ${formatRubWhole(limit.dailyLimit)}.`;
+    phrase = `Трат пока нет. Можно до ${formatRubWhole(limit.dailyLimit)}.`;
   } else if (mood === 'joy') {
     phrase = 'Идём в рамках дня, всё по плану.';
   } else if (mood === 'thoughtful') {
-    phrase = 'Чуть больше лимита дня. Ничего страшного, следующие дни немного подстроятся.';
+    phrase = 'Чуть больше лимита. Ничего страшного, дальше подстроимся.';
   } else {
     phrase = 'Бывает. Завтра чуть строже, и всё выровняется.';
   }
