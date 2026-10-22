@@ -21,6 +21,11 @@ export function addExpense(data: FinanceData, e: ExpenseInput, id: string, now: 
   };
 }
 
+/** Удалить ошибочно записанную трату. */
+export function removeExpense(data: FinanceData, id: string): FinanceData {
+  return { ...data, expenses: data.expenses.filter((x) => x.id !== id) };
+}
+
 /**
  * Ожидаемые доходы, которые можно подтвердить кнопкой «Пришла»: от месяца назад до месяца вперёд.
  * Пропущенные выплаты старше последней подтверждённой того же дохода не предлагаются.

@@ -44,6 +44,7 @@ export function demoData(today: ISODate, nowTs: number): FinanceData {
     isDemo: true,
     categories: DEFAULT_CATEGORIES,
     questionnaire: { protectedCategoryIds: [] },
+    goals: [DEMO_GOAL],
     accounts: [
       { id: 'main', kind: 'main', name: 'Основной счёт', amount: rub(100_000), asOf: today, asOfTs: nowTs },
       { id: 'savings', kind: 'savings', name: 'Накопления', amount: rub(100_000), asOf: today, asOfTs: nowTs },

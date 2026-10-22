@@ -112,6 +112,16 @@ export function computeLimit(data: FinanceData, today: ISODate): LimitResult {
   const percent = data.settings.savePercent;
   const basis = JSON.stringify([data.regularIncomes, data.oneOffIncomes, data.payments, data.settings.transportMonthly]);
   const kept = data.savePlan;
+  // Переводы между своими счетами не меняют, сколько откладывать: «Взять из накоплений»
+  // целиком идёт в лимит, а перевод в накопления не уменьшает план.
+  const planStart = kept?.periodKey === period.key ? kept.periodStart : period.start;
+  let netIntoMain = 0;
+  for (const t of data.transfers) {
+    if (t.date < planStart || t.date > today) continue;
+    if (t.toAccountId === main.id) netIntoMain += t.amount;
+    if (t.fromAccountId === main.id) netIntoMain -= t.amount;
+  }
+  const planBase = sub(base, netIntoMain as Kopecks);
   const plan: SavePlan =
     kept &&
     kept.periodKey === period.key &&
@@ -121,9 +131,9 @@ export function computeLimit(data: FinanceData, today: ISODate): LimitResult {
       ? kept
       : {
           periodKey: period.key,
-          periodStart: kept?.periodKey === period.key ? kept.periodStart : period.start,
+          periodStart: planStart,
           percent,
-          amount: base > 0 ? percentOf(base, percent) : ZERO,
+          amount: planBase > 0 ? percentOf(planBase, percent) : ZERO,
           createdOn: kept?.periodKey === period.key && kept.basis === basis && kept.percent === percent ? kept.createdOn : today,
           basis,
         };

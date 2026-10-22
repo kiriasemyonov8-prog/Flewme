@@ -20,6 +20,7 @@ export type ImportError = 'notJson' | 'notFlyumi' | 'newerVersion' | 'broken';
 
 const ARRAYS: (keyof FinanceData)[] = [
   'categories',
+  'goals',
   'accounts',
   'regularIncomes',
   'oneOffIncomes',

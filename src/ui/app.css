@@ -628,6 +628,186 @@
   border-top: 1px solid var(--border);
 }
 
+/* Финансы и цели */
+.big-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.big-value {
+  font-size: 32px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.stat-value.small {
+  font-size: 20px;
+}
+
+.card-title {
+  margin: 0 0 4px;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.list-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.list-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 14.5px;
+}
+
+.list-row:last-child {
+  border-bottom: 0;
+}
+
+.list-btn {
+  width: 100%;
+  border-top: 0;
+  border-left: 0;
+  border-right: 0;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+
+.num.plus {
+  color: var(--emerald);
+  font-weight: 700;
+}
+
+.num.muted {
+  color: var(--text-muted);
+}
+
+.move-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.move-amount {
+  font-size: 22px;
+  font-weight: 800;
+  margin: 4px 0;
+}
+
+.progress {
+  height: 10px;
+  border-radius: 999px;
+  background: var(--surface-soft);
+  overflow: hidden;
+}
+
+.progress span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+}
+
+.goal-mini,
+.goal-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  border: 0;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+
+.goal-card {
+  cursor: default;
+}
+
+.goal-pct {
+  margin-left: auto;
+  color: var(--text);
+}
+
+.cat-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.cat-row-head {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+}
+
+.price-box {
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: var(--emerald-soft);
+  font-size: 14.5px;
+  line-height: 1.45;
+}
+
+.price-box p {
+  margin: 0;
+}
+
+.price-box p + p {
+  margin-top: 6px;
+}
+
+/* Покупка */
+.purchase-input {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.verdict-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 2px solid;
+}
+
+.verdict-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.verdict-price {
+  font-size: 28px;
+  font-weight: 800;
+}
+
+.verdict-text {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+.recs {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 14.5px;
+  line-height: 1.45;
+}
+
 /* Профиль: разделы и строки */
 .section {
   display: flex;

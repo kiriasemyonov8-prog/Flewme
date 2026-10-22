@@ -30,6 +30,7 @@ export function emptyData(today: ISODate): FinanceData {
     isDemo: false,
     categories: DEFAULT_CATEGORIES,
     questionnaire: { protectedCategoryIds: [] },
+    goals: [],
     accounts: [],
     regularIncomes: [],
     oneOffIncomes: [],

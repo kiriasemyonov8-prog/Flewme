@@ -1,12 +1,13 @@
 // Окно «Покупка»: вердикт и рекомендации (SPEC, раздел 10). Всё считает код, не ИИ.
-// Способ оценки срока накопления черновой (❓ открытый вопрос 1): копим тем,
-// что откладывается в накопления за период (SavePlan.amount ≈ месяц).
+// Срок накопления недостающего считается выбранным пользователем способом (SPEC 3.9):
+// «из отложенного» — тем, что откладывается в накопления за период (SavePlan.amount ≈ месяц);
+// «урезать лимит» — долей дневного лимита (CONFIG.purchase.cutLimitPercent) каждый день.
 import { currentBalance, savingsAccount } from './balance';
 import { CONFIG } from './config';
 import { addDays, type ISODate } from './dates';
 import { goalProgressPermille } from './goal';
 import type { LimitOk } from './limit';
-import { ZERO, divFloor, kop, max, min, percentOf, sub, sum, type Kopecks } from './money';
+import { ZERO, divFloor, max, min, mulInt, percentOf, sub, sum, type Kopecks } from './money';
 import { paymentOccurrences } from './schedule';
 import type { FinanceData, Goal } from './types';
 
@@ -15,6 +16,8 @@ export type PurchaseSource =
   | { kind: 'savings' }
   | { kind: 'all' }
   | { kind: 'other'; accountId: string };
+
+export type SavingMethod = 'setAside' | 'cutLimit';
 
 export type Verdict = 'yes' | 'compromise' | 'wait' | 'no' | 'unknown';
 
@@ -28,7 +31,7 @@ export type VerdictReason =
 
 export type Recommendation =
   | { type: 'waitIncome'; date: ISODate }
-  | { type: 'saveDaily'; perDay: Kopecks; readyDate: ISODate }
+  | { type: 'saveDaily'; method: SavingMethod; perDay: Kopecks; readyDate: ISODate }
   | { type: 'fromSavings'; amount: Kopecks; goalDelayDays: number | null; progressFrom: number; progressTo: number }
   | { type: 'cheaper'; upTo: Kopecks };
 
@@ -70,6 +73,12 @@ export function savingsTotal(data: FinanceData, today: ISODate): Kopecks {
   return acc ? max(ZERO, currentBalance(acc, data, today)) : ZERO;
 }
 
+/** Сколько можно накопить за месяц выбранным способом. */
+export function savingCapacity(limit: LimitOk, method: SavingMethod): Kopecks {
+  if (method === 'setAside') return limit.savePlan.amount;
+  return mulInt(percentOf(limit.dailyLimit, CONFIG.purchase.cutLimitPercent), CONFIG.purchase.monthDays);
+}
+
 function takeInOrder(price: Kopecks, buckets: Kopecks[]): Kopecks[] {
   let rest = price;
   return buckets.map((b) => {
@@ -86,12 +95,16 @@ export function evaluatePurchase(
   source: PurchaseSource,
   today: ISODate,
   goal?: Goal,
+  method: SavingMethod = 'setAside',
 ): PurchaseResult {
   const cfg = CONFIG.purchase;
   const free = max(ZERO, limit.free);
   const savings = savingsTotal(data, today);
   const others = otherAccountsTotal(data, today);
+  // Скорость накопления цели — то, что откладывается в накопления.
   const monthly = limit.savePlan.amount;
+  // Скорость накопления недостающего на покупку — выбранным способом.
+  const capacity = savingCapacity(limit, method);
 
   let available: Kopecks;
   let buckets: { free: Kopecks; other: Kopecks; savings: Kopecks };
@@ -153,7 +166,7 @@ export function evaluatePurchase(
       reason = 'takesMuch';
     }
   } else {
-    const days = daysToSave(shortfall, monthly);
+    const days = daysToSave(shortfall, capacity);
     if (days === null) {
       verdict = 'unknown';
       reason = 'cannotEstimate';
@@ -185,13 +198,14 @@ export function evaluatePurchase(
     }
   }
 
-  // 2. Откладывать X ₽ в день, чтобы собрать недостающее за разумный срок.
-  if (shortfall > 0) {
-    const days = cfg.waitMonths * cfg.monthDays;
-    const perDay = kop(ceilDiv(shortfall, days));
-    if (perDay < limit.dailyLimit) {
-      recommendations.push({ type: 'saveDaily', perDay, readyDate: addDays(today, days) });
-    }
+  // 2. Откладывать X ₽ в день выбранным способом — покупка станет возможной к дате.
+  if (shortfall > 0 && readyDate) {
+    recommendations.push({
+      type: 'saveDaily',
+      method,
+      perDay: divFloor(capacity, cfg.monthDays),
+      readyDate,
+    });
   }
 
   // 3. Взять недостающее из накоплений ценой сдвига цели.

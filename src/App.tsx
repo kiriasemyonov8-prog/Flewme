@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { BottomNav, type Tab } from './ui/BottomNav';
 import { HomeScreen } from './screens/HomeScreen';
 import { ProfileScreen } from './screens/ProfileScreen';
-import { StubScreen } from './screens/StubScreen';
+import { FinanceScreen } from './screens/FinanceScreen';
+import { PurchaseScreen } from './screens/PurchaseScreen';
 import { useFinance } from './state/useFinance';
 import './ui/app.css';
 
@@ -23,15 +24,8 @@ export function App() {
         {tab === 'home' && (
           <HomeScreen store={store} homeSignal={homeSignal} onOpenProfile={() => changeTab('profile')} />
         )}
-        {tab === 'finance' && (
-          <StubScreen title="Финансы и цели" note="Доходы, расходы и цели появятся на шаге 5." />
-        )}
-        {tab === 'purchase' && (
-          <StubScreen
-            title="Рассчитать покупку или предложи получше"
-            note="Проверка крупных покупок появится на шаге 5."
-          />
-        )}
+        {tab === 'finance' && <FinanceScreen store={store} />}
+        {tab === 'purchase' && <PurchaseScreen store={store} />}
         {tab === 'profile' && <ProfileScreen store={store} />}
       </main>
       <BottomNav active={tab} onChange={changeTab} />

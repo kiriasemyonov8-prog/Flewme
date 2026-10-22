@@ -161,6 +161,8 @@ export interface FinanceData {
   categories: Category[];
   /** Анкета «На чём не готов экономить». Влияет только на рекомендации, не на лимит. */
   questionnaire: Questionnaire;
+  /** Цель копится на накопительном счёте; прогресс = сумма на нём. Пока одна цель. */
+  goals: Goal[];
   accounts: Account[];
   regularIncomes: RegularIncome[];
   oneOffIncomes: OneOffIncome[];
