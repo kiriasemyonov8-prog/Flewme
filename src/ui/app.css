@@ -381,6 +381,55 @@
   cursor: pointer;
 }
 
+/* Иконка Флюми слева сверху в разделах и в чате */
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.section-header .demo-badge {
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+.flyumi-icon {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--glass-sheen), var(--glass-bg);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  box-shadow: var(--glass-shadow);
+  cursor: pointer;
+  transition: transform 0.15s;
+}
+
+.flyumi-icon:active {
+  transform: scale(0.94);
+}
+
+.chat-screen .flyumi-icon {
+  position: fixed;
+  top: max(16px, env(safe-area-inset-top));
+  left: max(16px, calc(50% - 240px + 16px));
+  z-index: 15;
+}
+
+.chat-dock {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--nav-height) + 14px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  width: min(100%, 480px);
+  padding: 0 16px;
+  z-index: 15;
+}
+
 /* «Улёт» вверх: всё, кроме робота и навигации */
 .fly {
   transition:
@@ -826,13 +875,6 @@
   flex-direction: column;
   gap: 8px;
   border: 2px solid;
-}
-
-.verdict-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
 }
 
 .verdict-head {

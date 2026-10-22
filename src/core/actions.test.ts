@@ -16,7 +16,7 @@ describe('действия', () => {
     d = addExpense(d, { amount: rub(1_100), accountId: 'main', categoryId: 'fun', date: T }, 'x', 2000);
     const after = computeLimit(d, T) as LimitOk;
     expect(after.dailyLimit).toBe(before);
-    expect(robotMood(spentTodayMain(d, T), after.dailyLimit)).toBe('thoughtful');
+    expect(robotMood(spentTodayMain(d, T), after.dailyLimit)).toBe('sad');
     expect(d.lastCategoryId).toBe('fun');
   });
 

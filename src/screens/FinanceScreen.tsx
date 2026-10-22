@@ -12,7 +12,6 @@ import { savingsTotal } from '../core/purchase';
 import type { Expense, TransferPurpose } from '../core/types';
 import { newId, type FinanceStore } from '../state/useFinance';
 import { ConfirmSheet } from '../ui/ConfirmSheet';
-import { DemoBadge } from '../ui/DemoBadge';
 import { Segmented } from '../ui/Form';
 import { GoalSheet, WithdrawSheet } from './finance/GoalSheets';
 
@@ -81,7 +80,6 @@ export function FinanceScreen({ store }: { store: FinanceStore }) {
 
   return (
     <>
-      {data.isDemo && <DemoBadge />}
       <h1 className="screen-title">Финансы и цели</h1>
       <Segmented
         label="Раздел"

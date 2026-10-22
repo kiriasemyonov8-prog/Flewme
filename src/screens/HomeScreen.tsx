@@ -1,5 +1,4 @@
-import { ArrowUp, CalendarDays, MessageCircle, Wallet } from 'lucide-react';
-import { demoAssistant, TYPICAL_QUESTIONS } from '../ai/assistant';
+import { CalendarDays, MessageCircle, Wallet } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { Robot } from '../assets/character';
 import { spentTodayMain } from '../core/balance';
@@ -10,7 +9,9 @@ import { remainingToday } from '../core/limit';
 import { robotMood } from '../core/mood';
 import { addCategory } from '../core/profile';
 import { CATEGORY_ERRORS } from './profile/SimpleSheets';
+import type { ChatStore } from '../state/useChat';
 import type { FinanceStore } from '../state/useFinance';
+import { ChatInput, ChatThread } from '../ui/Chat';
 import { DemoBadge } from '../ui/DemoBadge';
 import { ThoughtCloud } from '../ui/ThoughtCloud';
 import { CloseDaySheet } from './home/CloseDaySheet';
@@ -30,10 +31,12 @@ const fly = (i: number) => ({ '--i': i }) as CSSProperties;
 
 export function HomeScreen({
   store,
+  chatStore,
   homeSignal,
   onOpenProfile,
 }: {
   store: FinanceStore;
+  chatStore: ChatStore;
   homeSignal: number;
   onOpenProfile: () => void;
 }) {
@@ -42,18 +45,10 @@ export function HomeScreen({
   const [chat, setChat] = useState(false);
   const [robotShift, setRobotShift] = useState<string | undefined>();
   const [chatShift, setChatShift] = useState<string | undefined>();
-  const [question, setQuestion] = useState('');
   const [dismissed, setDismissed] = useState<string[]>([]);
-  const [messages, setMessages] = useState<{ from: 'user' | 'flyumi'; text: string }[]>([]);
   const robotRef = useRef<HTMLDivElement>(null);
   const chatRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const chatEndRef = useRef<HTMLDivElement>(null);
-
-  // Новые сообщения всегда видны.
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ block: 'end' });
-  }, [messages]);
 
   // Нажатие на «Главная» в навигации возвращает экран из режима чата.
   useEffect(() => {
@@ -76,19 +71,6 @@ export function HomeScreen({
     inputRef.current?.focus({ preventScroll: true });
   }, [chat]);
 
-  function send(text: string) {
-    const q = text.trim();
-    if (!q) return;
-    const reply = demoAssistant.reply(q, { data, today, limit });
-    if (reply.expense) store.addExpense(reply.expense);
-    setMessages((m) => [...m, { from: 'user', text: q }, { from: 'flyumi', text: reply.text }]);
-    setQuestion('');
-  }
-
-  function ask(e: React.FormEvent) {
-    e.preventDefault();
-    send(question);
-  }
 
   const spent = spentTodayMain(data, today);
   const remaining = limit.status === 'ok' ? remainingToday(limit.dailyLimit, spent) : null;
@@ -145,8 +127,6 @@ export function HomeScreen({
     phrase = `Трат пока нет. Можно до ${formatRubWhole(limit.dailyLimit)}.`;
   } else if (mood === 'joy') {
     phrase = 'Идём в рамках дня, всё по плану.';
-  } else if (mood === 'thoughtful') {
-    phrase = 'Чуть больше лимита. Не страшно, подстроимся.';
   } else {
     phrase = 'Бывает. Завтра чуть строже, и всё выровняется.';
   }
@@ -260,20 +240,7 @@ export function HomeScreen({
 
       <div ref={chatRef} className="chat-box" style={{ transform: chatShift }}>
         {chat ? (
-          <form className="chat-form glass" onSubmit={ask}>
-            <MessageCircle size={20} aria-hidden />
-            <input
-              ref={inputRef}
-              value={question}
-              onChange={(e) => setQuestion(e.target.value)}
-              placeholder="Спросить Флюми"
-              aria-label="Вопрос Флюми"
-              enterKeyHint="send"
-            />
-            <button type="submit" className="send-btn" aria-label="Отправить">
-              <ArrowUp size={20} />
-            </button>
-          </form>
+          <ChatInput chat={chatStore} inputRef={inputRef} />
         ) : (
           <button type="button" className="chat-strip glass" onClick={() => setChat(true)}>
             <MessageCircle size={20} aria-hidden />
@@ -284,29 +251,7 @@ export function HomeScreen({
 
       {chat && (
         <section className="chat-panel" aria-label="Чат с Флюми">
-          {messages.length === 0 && (
-            <>
-              <div className="chat-msg">
-                Спросите про лимит, зарплату или покупку — отвечу с настоящими числами и покажу, откуда они. Чтобы
-                вернуться, нажмите на меня слева сверху.
-                <span className="demo-tag">демо</span>
-              </div>
-              <div className="chips">
-                {TYPICAL_QUESTIONS.map((q) => (
-                  <button key={q} type="button" className="chip" onClick={() => send(q)}>
-                    {q}
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
-          {messages.map((m, i) => (
-            <div key={i} className={`chat-msg${m.from === 'user' ? ' from-user' : ''}`}>
-              {m.text}
-              {m.from === 'flyumi' && <span className="demo-tag">демо</span>}
-            </div>
-          ))}
-          <div ref={chatEndRef} />
+          <ChatThread chat={chatStore} />
         </section>
       )}
 

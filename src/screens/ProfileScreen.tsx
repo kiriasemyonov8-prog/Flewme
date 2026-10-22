@@ -9,7 +9,6 @@ import { monthOf } from '../core/dates';
 import type { Account, AccountKind, FinanceData, RegularIncome } from '../core/types';
 import { newId, type FinanceStore } from '../state/useFinance';
 import { ConfirmSheet } from '../ui/ConfirmSheet';
-import { DemoBadge } from '../ui/DemoBadge';
 import { RowButton, Section, Segmented, Toggle } from '../ui/Form';
 import { BalanceSheet } from './profile/BalanceSheet';
 import { PaymentSheet } from './profile/PaymentSheet';
@@ -109,7 +108,6 @@ export function ProfileScreen({ store }: { store: FinanceStore }) {
 
   return (
     <>
-      {data.isDemo && <DemoBadge />}
       <h1 className="screen-title">Профиль</h1>
 
       <Section title="Счета">

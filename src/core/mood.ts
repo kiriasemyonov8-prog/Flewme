@@ -1,13 +1,11 @@
-// Настроение робота по тратам за сегодня с основного счёта (SPEC, раздел 4).
-import { CONFIG } from './config';
+// Настроение робота по тратам за сегодня с основного счёта (SPEC, раздел 4, 3.16).
+// Три выражения: спокойствие, радость, грусть.
 import type { Kopecks } from './money';
 
-export type Mood = 'calm' | 'joy' | 'thoughtful' | 'sad';
+export type Mood = 'calm' | 'joy' | 'sad';
 
 export function robotMood(spentToday: Kopecks, dailyLimit: Kopecks): Mood {
   if (spentToday <= 0) return 'calm';
   if (spentToday <= dailyLimit) return 'joy';
-  // Сравнение в целых: spent ≤ 1,2 × L  ⇔  spent × 100 ≤ L × 120.
-  if (spentToday * 100 <= dailyLimit * CONFIG.moodThoughtfulPercent) return 'thoughtful';
   return 'sad';
 }

@@ -5,15 +5,8 @@ import { RobotPlaceholder, type PlaceholderExpression } from './placeholders/Rob
 export type Expression = PlaceholderExpression;
 
 export const EXPRESSION_LABELS: Record<Expression, string> = {
-  joy: 'радость',
-  surprise: 'удивление',
-  inspiration: 'вдохновение',
-  thoughtful: 'задумчивость',
-  confident: 'уверенность',
-  playful: 'игривость',
-  care: 'забота',
-  laugh: 'смех',
   calm: 'спокойствие',
+  joy: 'радость',
   sad: 'грусть',
 };
 

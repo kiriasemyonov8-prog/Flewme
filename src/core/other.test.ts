@@ -50,9 +50,8 @@ describe('настроение робота (лимит 1 050 ₽)', () => {
   it.each([
     [0, 'calm'],
     [rub(1_050), 'joy'],
-    [rub(1_050) + 1, 'thoughtful'],
-    [rub(1_260), 'thoughtful'],
-    [rub(1_260) + 1, 'sad'],
+    [rub(1_050) + 1, 'sad'],
+    [rub(5_000), 'sad'],
   ] as const)('потрачено %i коп. → %s', (spent, mood) => {
     expect(robotMood(kop(spent), L)).toBe(mood);
   });
