@@ -104,7 +104,10 @@ export interface Goal {
   id: string;
   name: string;
   target: Kopecks;
+  /** Срок задаёт очередь: чем ближе, тем раньше цель получает отложенное. Без срока — в конце. */
   deadline?: ISODate;
+  /** Свой накопительный счёт цели: прогресс = сумма на нём (SPEC 3.17). */
+  accountId: string;
 }
 
 export type LeftoverMode = 'otherDays' | 'account';
@@ -161,7 +164,7 @@ export interface FinanceData {
   categories: Category[];
   /** Анкета «На чём не готов экономить». Влияет только на рекомендации, не на лимит. */
   questionnaire: Questionnaire;
-  /** Цель копится на накопительном счёте; прогресс = сумма на нём. Пока одна цель. */
+  /** Цели, у каждой свой накопительный счёт. */
   goals: Goal[];
   accounts: Account[];
   regularIncomes: RegularIncome[];

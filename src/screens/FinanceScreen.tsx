@@ -4,12 +4,11 @@ import { removeExpense } from '../core/actions';
 import { currentBalance } from '../core/balance';
 import { monthOf } from '../core/dates';
 import { formatDayMonth, formatPermille, formatRub, formatRubWhole, pluralDays } from '../core/format';
-import { goalProgressPermille } from '../core/goal';
-import { addTransfer, removeGoal, upsertGoal } from '../core/money-moves';
+import { allocateSetAside, goalBalance, goalProgress, goalsByPriority, monthlyForGoal } from '../core/goals';
+import { addTransfer, createGoal, removeGoal, upsertGoal } from '../core/money-moves';
 import type { Kopecks } from '../core/money';
 import { incomeName, monthExpenses, receivedIncomes, upcomingIncomes } from '../core/overview';
-import { savingsTotal } from '../core/purchase';
-import type { Expense, TransferPurpose } from '../core/types';
+import type { Expense, Goal, TransferPurpose } from '../core/types';
 import { newId, type FinanceStore } from '../state/useFinance';
 import { ConfirmSheet } from '../ui/ConfirmSheet';
 import { Segmented } from '../ui/Form';
@@ -19,9 +18,9 @@ type TabId = 'overview' | 'expenses' | 'incomes' | 'goals';
 
 type Open =
   | null
-  | { kind: 'goal'; edit: boolean }
-  | { kind: 'withdraw' }
-  | { kind: 'transfer'; amount: Kopecks; purpose: TransferPurpose }
+  | { kind: 'goal'; goalId?: string }
+  | { kind: 'withdraw'; goalId: string }
+  | { kind: 'transfer'; amount: Kopecks; purpose: TransferPurpose; toAccountId: string }
   | { kind: 'expense'; expense: Expense };
 
 const MONTHS_NOM = [
@@ -44,10 +43,8 @@ export function FinanceScreen({ store }: { store: FinanceStore }) {
   const close = () => setOpen(null);
 
   const main = data.accounts.find((a) => a.kind === 'main');
-  const savingsAcc = data.accounts.find((a) => a.kind === 'savings');
-  const savings = savingsTotal(data, today);
-  const goal = data.goals[0];
-  const progress = goal ? goalProgressPermille(savings, goal.target) : 0;
+  const firstSavings = data.accounts.find((a) => a.kind === 'savings');
+  const goals = goalsByPriority(data.goals);
   const month = monthOf(today);
   const spending = monthExpenses(data, month);
   const maxCat = spending.byCategory[0]?.total ?? 0;
@@ -55,28 +52,85 @@ export function FinanceScreen({ store }: { store: FinanceStore }) {
   const categoryColor = (id: string) => data.categories.find((c) => c.id === id)?.color ?? 'var(--cat-7)';
   const accountName = (id: string) => data.accounts.find((a) => a.id === id)?.name ?? 'Счёт';
 
-  function transferRow(amount: Kopecks, purpose: TransferPurpose, title: string) {
-    if (amount <= 0) return null;
+  /** Куда переводить отложенное: по целям согласно очереди или на общий накопительный счёт. */
+  const setAsideRows: { title: string; amount: Kopecks; toAccountId?: string }[] =
+    limit.status !== 'ok' || limit.setAside <= 0
+      ? []
+      : goals.length > 0
+        ? allocateSetAside(data, limit.setAside, today)
+            .filter((s) => s.amount > 0)
+            .map((s) => ({ title: `Отложить на «${s.goal.name}»`, amount: s.amount, toAccountId: s.goal.accountId }))
+        : [{ title: 'Отложить в накопления', amount: limit.setAside, toAccountId: firstSavings?.id }];
+
+  function transferRow(row: { title: string; amount: Kopecks; toAccountId?: string }, purpose: TransferPurpose) {
     return (
-      <div className="card move-card">
+      <div key={row.title} className="card move-card">
         <div>
           <div className="stat-head">
             <ArrowDownToLine size={18} aria-hidden />
-            <span>{title}</span>
+            <span>{row.title}</span>
           </div>
-          <div className="move-amount num">{formatRub(amount)}</div>
+          <div className="move-amount num">{formatRub(row.amount)}</div>
           <div className="stat-note">
-            {savingsAcc ? 'Переведите в банке на накопительный счёт и подтвердите' : 'Укажите накопительный счёт в профиле'}
+            {row.toAccountId ? `Переведите в банке на «${accountName(row.toAccountId)}» и подтвердите` : 'Укажите накопительный счёт в профиле'}
           </div>
         </div>
-        {savingsAcc && main && (
-          <button type="button" className="btn btn-secondary" onClick={() => setOpen({ kind: 'transfer', amount, purpose })}>
+        {row.toAccountId && main && (
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => setOpen({ kind: 'transfer', amount: row.amount, purpose, toAccountId: row.toAccountId! })}
+          >
             Перевёл
           </button>
         )}
       </div>
     );
   }
+
+  function goalCard(goal: Goal, index: number) {
+    const progress = goalProgress(data, goal, today);
+    const balance = goalBalance(data, goal, today);
+    const monthly = limit.status === 'ok' ? monthlyForGoal(data, limit.savePlan.amount, goal, today) : 0;
+    return (
+      <section key={goal.id} className="card goal-card">
+        <div className="stat-head">
+          <Target size={18} aria-hidden />
+          <span>{goal.name}</span>
+          <span className="goal-pct num">№ {index + 1} в очереди</span>
+        </div>
+        <div className="big-value num">{formatPermille(progress)}</div>
+        <Progress permille={progress} />
+        <div className="stat-note">
+          {formatRub(balance)} из {formatRub(goal.target)}
+          {goal.deadline ? ` · к ${formatDayMonth(goal.deadline)} ${goal.deadline.slice(0, 4)}` : ' · без срока'}
+        </div>
+        {limit.status === 'ok' && (
+          <div className="stat-note">
+            {monthly > 0
+              ? `Откладывается около ${formatRubWhole(monthly as Kopecks)} в месяц`
+              : 'Сейчас отложенное уходит на цели выше в очереди'}
+          </div>
+        )}
+        <div className="btn-row">
+          <button type="button" className="btn btn-secondary" onClick={() => setOpen({ kind: 'goal', goalId: goal.id })}>
+            Изменить
+          </button>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => setOpen({ kind: 'withdraw', goalId: goal.id })}
+            disabled={limit.status !== 'ok' || !main || balance <= 0}
+          >
+            Взять
+          </button>
+        </div>
+      </section>
+    );
+  }
+
+  const editGoal = open?.kind === 'goal' && open.goalId ? data.goals.find((g) => g.id === open.goalId) : undefined;
+  const withdrawGoal = open?.kind === 'withdraw' ? data.goals.find((g) => g.id === open.goalId) : undefined;
 
   return (
     <>
@@ -124,8 +178,13 @@ export function FinanceScreen({ store }: { store: FinanceStore }) {
             ))}
           </div>
 
-          {limit.status === 'ok' && transferRow(limit.setAside, 'setAside', 'Отложить в накопления')}
-          {limit.status === 'ok' && transferRow(limit.saved, 'saved', 'Сэкономлено')}
+          {setAsideRows.map((row) => transferRow(row, 'setAside'))}
+          {limit.status === 'ok' &&
+            limit.saved > 0 &&
+            transferRow(
+              { title: 'Сэкономлено', amount: limit.saved, toAccountId: goals[0]?.accountId ?? firstSavings?.id },
+              'saved',
+            )}
 
           {limit.status === 'ok' && (
             <section className="card list-card">
@@ -161,19 +220,22 @@ export function FinanceScreen({ store }: { store: FinanceStore }) {
             </section>
           )}
 
-          {goal && (
-            <button type="button" className="card goal-mini" onClick={() => setTab('goals')}>
-              <div className="stat-head">
-                <Target size={18} aria-hidden />
-                <span>{goal.name}</span>
-                <span className="goal-pct num">{formatPermille(progress)}</span>
-              </div>
-              <Progress permille={progress} />
-              <div className="stat-note">
-                {formatRub(savings)} из {formatRub(goal.target)}
-              </div>
-            </button>
-          )}
+          {goals.map((goal) => {
+            const progress = goalProgress(data, goal, today);
+            return (
+              <button key={goal.id} type="button" className="card goal-mini" onClick={() => setTab('goals')}>
+                <div className="stat-head">
+                  <Target size={18} aria-hidden />
+                  <span>{goal.name}</span>
+                  <span className="goal-pct num">{formatPermille(progress)}</span>
+                </div>
+                <Progress permille={progress} />
+                <div className="stat-note">
+                  {formatRub(goalBalance(data, goal, today))} из {formatRub(goal.target)}
+                </div>
+              </button>
+            );
+          })}
         </>
       )}
 
@@ -255,86 +317,67 @@ export function FinanceScreen({ store }: { store: FinanceStore }) {
 
       {tab === 'goals' && (
         <>
-          {goal ? (
-            <section className="card goal-card">
-              <div className="stat-head">
-                <Target size={18} aria-hidden />
-                <span>{goal.name}</span>
-              </div>
-              <div className="big-value num">{formatPermille(progress)}</div>
-              <Progress permille={progress} />
-              <div className="stat-note">
-                {formatRub(savings)} из {formatRub(goal.target)}
-                {goal.deadline ? ` · к ${formatDayMonth(goal.deadline)} ${goal.deadline.slice(0, 4)}` : ' · без срока'}
-              </div>
-              <div className="btn-row">
-                <button type="button" className="btn btn-secondary" onClick={() => setOpen({ kind: 'goal', edit: true })}>
-                  Изменить
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => setOpen({ kind: 'withdraw' })}
-                  disabled={limit.status !== 'ok' || !savingsAcc || savings <= 0}
-                >
-                  Взять из накоплений
-                </button>
-              </div>
-              {(limit.status !== 'ok' || !savingsAcc) && (
-                <p className="hint">Чтобы брать из накоплений, укажите в профиле основной и накопительный счета и доход.</p>
-              )}
-            </section>
-          ) : (
+          {goals.length === 0 && (
             <div className="card stub">
-              <p>Цели пока нет. Поставьте цель — Флюми покажет прогресс по накопительному счёту.</p>
-              <button type="button" className="add-row" onClick={() => setOpen({ kind: 'goal', edit: false })}>
-                <Plus size={18} aria-hidden /> Новая цель
-              </button>
+              <p>Целей пока нет. У каждой цели будет свой накопительный счёт — Флюми покажет прогресс и сам распределит откладывание.</p>
             </div>
           )}
+          {goals.length > 1 && (
+            <p className="hint">
+              Откладывание ({data.settings.savePercent}%) Флюми делит сам: сначала цели с ближним сроком, цели без срока — в конце
+              очереди.
+            </p>
+          )}
+          {goals.map(goalCard)}
+          <button type="button" className="card add-row add-goal" onClick={() => setOpen({ kind: 'goal' })}>
+            <Plus size={18} aria-hidden /> Новая цель
+          </button>
         </>
       )}
 
       {open?.kind === 'goal' && (
         <GoalSheet
-          goal={open.edit ? goal : undefined}
+          goal={editGoal}
           today={today}
           newId={newId()}
           onClose={close}
           onDelete={
-            open.edit && goal
+            editGoal
               ? () => {
-                  update((d) => removeGoal(d, goal.id));
+                  update((d) => removeGoal(d, editGoal.id));
                   close();
                 }
               : undefined
           }
-          onSave={(g) => {
-            update((d) => upsertGoal(d, g));
+          onSave={({ initial, ...g }) => {
+            update((d) =>
+              editGoal ? upsertGoal(d, { ...g, accountId: editGoal.accountId }) : createGoal(d, g, initial, today, Date.now()),
+            );
             close();
           }}
         />
       )}
-      {open?.kind === 'withdraw' && limit.status === 'ok' && savingsAcc && main && (
+      {open?.kind === 'withdraw' && withdrawGoal && limit.status === 'ok' && main && (
         <WithdrawSheet
+          data={data}
           limit={limit}
-          savings={savings}
-          goal={goal}
+          goal={withdrawGoal}
+          today={today}
           onClose={close}
           onConfirm={(amount) => {
-            update((d) => addTransfer(d, savingsAcc.id, main.id, amount, 'withdraw', today, newId(), Date.now()));
+            update((d) => addTransfer(d, withdrawGoal.accountId, main.id, amount, 'withdraw', today, newId(), Date.now()));
             close();
           }}
         />
       )}
-      {open?.kind === 'transfer' && savingsAcc && main && (
+      {open?.kind === 'transfer' && main && (
         <ConfirmSheet
           title={open.purpose === 'saved' ? 'Сэкономленное в накопления' : 'Отложить в накопления'}
-          text={`Переведите ${formatRub(open.amount)} с «${main.name}» на «${savingsAcc.name}» в приложении банка. Перевели?`}
+          text={`Переведите ${formatRub(open.amount)} с «${main.name}» на «${accountName(open.toAccountId)}» в приложении банка. Перевели?`}
           confirmLabel="Да, перевёл"
           onClose={close}
           onConfirm={() => {
-            update((d) => addTransfer(d, main.id, savingsAcc.id, open.amount, open.purpose, today, newId(), Date.now()));
+            update((d) => addTransfer(d, main.id, open.toAccountId, open.amount, open.purpose, today, newId(), Date.now()));
             close();
           }}
         />

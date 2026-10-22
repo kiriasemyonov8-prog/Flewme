@@ -55,7 +55,7 @@ export function ProfileScreen({ store }: { store: FinanceStore }) {
   const thisMonth = monthOf(today);
 
   const main = data.accounts.find((a) => a.kind === 'main');
-  const savings = data.accounts.find((a) => a.kind === 'savings');
+  const savingsList = data.accounts.filter((a) => a.kind === 'savings');
   const others = data.accounts.filter((a) => a.kind === 'other');
   const confirmedOneOff = new Set(data.receipts.map((r) => r.occurrenceKey));
   const expectedOneOff = data.oneOffIncomes.filter((i) => !confirmedOneOff.has(`oneoff:${i.id}`));
@@ -112,7 +112,9 @@ export function ProfileScreen({ store }: { store: FinanceStore }) {
 
       <Section title="Счета">
         {accountRow('main', main, 'Основной счёт')}
-        {accountRow('savings', savings, 'Накопления')}
+        {savingsList.length === 0
+          ? accountRow('savings', undefined, 'Накопления')
+          : savingsList.map((a) => accountRow('savings', a, a.name))}
         {others.map((a) => accountRow('other', a, a.name))}
         <button type="button" className="add-row" onClick={() => setOpen({ kind: 'balance', accountKind: 'other' })}>
           <Plus size={18} aria-hidden /> Другой счёт

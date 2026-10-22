@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+﻿import { describe, expect, it } from 'vitest';
 import { addDays, addMonths, dateInMonth, diffDays } from './dates';
 import { closeDay, closedStreak, isBalanceStale, unclosedDays } from './days';
 import { DEMO_GOAL, demoData } from './demo';
@@ -15,7 +15,7 @@ import { goalProgressPermille } from './goal';
 import { computeLimit, type LimitOk } from './limit';
 import { kop, percentOf, rub } from './money';
 import { robotMood } from './mood';
-import { evaluatePurchase, previewWithdrawal, savingsTotal } from './purchase';
+import { evaluatePurchase, previewWithdrawal } from './purchase';
 
 const T = '2026-10-21';
 
@@ -92,7 +92,7 @@ describe('закрытие дня и привычка', () => {
 describe('покупка: примеры демо (SPEC, раздел 10)', () => {
   it('90 000 с основного счёта — не хватает сейчас', () => {
     const { data, limit } = demoLimit();
-    const r = evaluatePurchase(data, limit, rub(90_000), { kind: 'main' }, T, DEMO_GOAL);
+    const r = evaluatePurchase(data, limit, rub(90_000), { kind: 'main' }, T);
     expect(r.available).toBe(rub(31_500));
     expect(r.shortfall).toBe(rub(58_500));
     expect(['wait', 'no']).toContain(r.verdict);
@@ -101,7 +101,7 @@ describe('покупка: примеры демо (SPEC, раздел 10)', () =
 
   it('90 000 с накоплений — «с компромиссом», цель с 10% до 1%', () => {
     const { data, limit } = demoLimit();
-    const r = evaluatePurchase(data, limit, rub(90_000), { kind: 'savings' }, T, DEMO_GOAL);
+    const r = evaluatePurchase(data, limit, rub(90_000), { kind: 'savings' }, T);
     expect(r.verdict).toBe('compromise');
     expect(r.sharePercent).toBe(90);
     expect(r.goalAfter?.from).toBe(100);
@@ -110,7 +110,7 @@ describe('покупка: примеры демо (SPEC, раздел 10)', () =
 
   it('90 000 со всех счетов — «с компромиссом», около 68%', () => {
     const { data, limit } = demoLimit();
-    const r = evaluatePurchase(data, limit, rub(90_000), { kind: 'all' }, T, DEMO_GOAL);
+    const r = evaluatePurchase(data, limit, rub(90_000), { kind: 'all' }, T);
     expect(r.available).toBe(rub(131_500));
     expect(r.verdict).toBe('compromise');
     expect(r.sharePercent).toBe(68);
@@ -120,7 +120,7 @@ describe('покупка: примеры демо (SPEC, раздел 10)', () =
 
   it('небольшая покупка — «Можно»', () => {
     const { data, limit } = demoLimit();
-    const r = evaluatePurchase(data, limit, rub(10_000), { kind: 'main' }, T, DEMO_GOAL);
+    const r = evaluatePurchase(data, limit, rub(10_000), { kind: 'main' }, T);
     expect(r.verdict).toBe('yes');
     // (31 500 − 10 000) / 30 = 716,66 → 716,66 ₽
     expect(r.limitAfter).toEqual({ from: rub(1_050), to: rub(716) + 66 });
@@ -144,7 +144,7 @@ describe('покупка: примеры демо (SPEC, раздел 10)', () =
 describe('«Взять из накоплений»', () => {
   it('10 500 ₽: лимит с 1 050 до 1 400, цель отодвинется примерно на 3 недели', () => {
     const { data, limit } = demoLimit();
-    const p = previewWithdrawal(limit, rub(10_500), savingsTotal(data, T), DEMO_GOAL);
+    const p = previewWithdrawal(data, limit, DEMO_GOAL, rub(10_500), T);
     expect(p.limitFrom).toBe(rub(1_050));
     expect(p.limitTo).toBe(rub(1_400));
     expect(p.goalDelayDays).toBe(24);

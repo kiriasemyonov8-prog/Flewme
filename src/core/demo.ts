@@ -19,7 +19,7 @@ const DEMO_EXPENSES: [offset: number, note: string, categoryId: string, rubles: 
   [-9, 'Одежда', 'shopping', 4500],
 ];
 
-export const DEMO_GOAL: Goal = { id: 'goal', name: 'Цель', target: rub(1_000_000) };
+export const DEMO_GOAL: Goal = { id: 'goal', name: 'Цель', target: rub(1_000_000), accountId: 'savings' };
 
 export function demoData(today: ISODate, nowTs: number): FinanceData {
   // Зарплата текущего окна считается полученной и уже входит в остаток.

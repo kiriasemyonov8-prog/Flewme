@@ -8,6 +8,7 @@ import { OTHER_ID } from '../core/categories';
 import type { ISODate } from '../core/dates';
 import { explainAvailable, explainMainAccount, type ExplainLine } from '../core/explain';
 import { formatDayMonth, formatRub, formatRubWhole, parseRubInput } from '../core/format';
+import { allocateSetAside } from '../core/goals';
 import { remainingToday, type LimitResult } from '../core/limit';
 import { kop, sub, type Kopecks } from '../core/money';
 import { evaluatePurchase } from '../core/purchase';
@@ -122,7 +123,7 @@ export const demoAssistant: Assistant = {
       // Покупка с суммой: «хватит ли на 90 000», «почему не хватает на 200 тыс»
       if (amount && has(/(купить|покупк|хватит|хватает|могу ли|стоит ли|накопить)/, q)) {
         const source = { kind: has(/(все|всех|всего|накоплен)/, q) ? 'all' : 'main' } as const;
-        const r = evaluatePurchase(data, limit, amount, source, today, data.goals[0]);
+        const r = evaluatePurchase(data, limit, amount, source, today);
         const lines = explainAvailable(data, limit, source, r, today);
         const verdict =
           r.shortfall > 0
@@ -175,12 +176,17 @@ export const demoAssistant: Assistant = {
       }
 
       if (has(/(накопить|копить|отложить|цель)/, q)) {
-        const goal = data.goals[0];
+        const shares = allocateSetAside(data, limit.savePlan.amount, today).filter((s) => s.amount > 0);
+        const split = shares.length
+          ? `\n\nКак это делится между целями (сначала те, у которых срок ближе):\n${shares
+              .map((s) => `• ${s.goal.name} — ${formatRub(s.amount)}`)
+              .join('\n')}`
+          : '';
         return {
           text:
             `Сейчас откладывается ${limit.savePlan.percent}% от остатка после обязательных платежей — в этом периоде ${formatRub(limit.savePlan.amount)}.` +
-            (goal ? ` Это копится на цель «${goal.name}».` : '') +
-            ' Чтобы проверить конкретную покупку, назовите сумму («хватит ли на 90 000?») или откройте раздел «Покупка».',
+            split +
+            '\n\nЧтобы проверить конкретную покупку, назовите сумму («хватит ли на 90 000?») или откройте раздел «Покупка».',
         };
       }
     }

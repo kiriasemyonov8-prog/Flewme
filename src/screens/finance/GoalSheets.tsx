@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { addDays, type ISODate } from '../../core/dates';
 import { formatDayMonth, formatPermille, formatRub, formatRubWhole, parseRubInput, toRubInput } from '../../core/format';
+import { goalBalance } from '../../core/goals';
 import type { LimitOk } from '../../core/limit';
 import type { Kopecks } from '../../core/money';
 import { previewWithdrawal } from '../../core/purchase';
-import type { Goal } from '../../core/types';
+import type { FinanceData, Goal } from '../../core/types';
 import { DateField } from '../../ui/Calendar';
 import { AmountPad, TextField, Toggle } from '../../ui/Form';
 import { Sheet } from '../../ui/Sheet';
@@ -20,6 +21,15 @@ export function approxDuration(days: number): string {
   return `${m} ${m === 1 ? 'месяц' : m < 5 ? 'месяца' : 'месяцев'}`;
 }
 
+export interface GoalForm {
+  id: string;
+  name: string;
+  target: Kopecks;
+  deadline?: ISODate;
+  /** Только для новой цели: сколько уже лежит на её счёте. */
+  initial: Kopecks;
+}
+
 export function GoalSheet({
   goal,
   today,
@@ -31,74 +41,95 @@ export function GoalSheet({
   goal?: Goal;
   today: ISODate;
   newId: string;
-  onSave: (g: Goal) => void;
+  onSave: (g: GoalForm) => void;
   onDelete?: () => void;
   onClose: () => void;
 }) {
   const [name, setName] = useState(goal?.name ?? '');
-  const [text, setText] = useState(goal ? toRubInput(goal.target) : '');
+  const [texts, setTexts] = useState([goal ? toRubInput(goal.target) : '', '']);
+  const [active, setActive] = useState(0);
   const [hasDeadline, setHasDeadline] = useState(Boolean(goal?.deadline));
   const [deadline, setDeadline] = useState(goal?.deadline ?? addDays(today, 365));
   const [error, setError] = useState(false);
+
+  const fields = goal
+    ? [{ label: 'Сколько нужно', text: texts[0] }]
+    : [
+        { label: 'Сколько нужно', text: texts[0] },
+        { label: 'Уже накоплено', text: texts[1] },
+      ];
 
   return (
     <Sheet title={goal ? 'Цель' : 'Новая цель'} onClose={onClose}>
       <TextField label="На что копим" value={name} onChange={setName} placeholder="Например, отпуск" />
       <AmountPad
-        fields={[{ label: 'Сколько нужно', text }]}
-        active={0}
-        onActivate={() => {}}
-        onChange={(_, u) => {
-          setText(u);
+        fields={fields}
+        active={active}
+        onActivate={setActive}
+        onChange={(i, u) => {
+          setTexts((t) => t.map((x, j) => (j === i ? u(x) : x)));
           setError(false);
         }}
       />
       {error && <p className="field-error">Введите сумму цели</p>}
       <Toggle label="Есть срок" checked={hasDeadline} onChange={setHasDeadline} />
       {hasDeadline && <DateField label="К какой дате" value={deadline} onChange={setDeadline} today={today} min={today} />}
-      <p className="hint">Цель копится на накопительном счёте: прогресс цели равен сумме на нём.</p>
+      <p className="hint">
+        {goal
+          ? 'Чем ближе срок, тем раньше цель получает свою долю откладывания. Цели без срока — в конце очереди.'
+          : 'У цели будет свой накопительный счёт: прогресс равен сумме на нём. Чем ближе срок, тем раньше цель получает свою долю откладывания; цели без срока — в конце очереди.'}
+      </p>
       <button
         type="button"
         className="btn btn-primary btn-wide"
         onClick={() => {
-          const target = parseRubInput(text);
+          const target = parseRubInput(texts[0]);
           if (!target) return setError(true);
-          onSave({ id: goal?.id ?? newId, name: name.trim() || 'Цель', target, deadline: hasDeadline ? deadline : undefined });
+          onSave({
+            id: goal?.id ?? newId,
+            name: name.trim() || 'Цель',
+            target,
+            deadline: hasDeadline ? deadline : undefined,
+            initial: parseRubInput(texts[1]) ?? (0 as Kopecks),
+          });
         }}
       >
         Сохранить
       </button>
       {onDelete && (
         <button type="button" className="link-btn danger" onClick={onDelete}>
-          Удалить цель
+          Удалить цель (счёт с деньгами останется в профиле)
         </button>
       )}
     </Sheet>
   );
 }
 
-/** «Взять из накоплений»: сразу видна цена — лимит и сдвиг цели (SPEC, раздел 7). */
+/** «Взять из накоплений» со счёта цели: сразу видна цена — лимит и сдвиг цели (SPEC, раздел 7). */
 export function WithdrawSheet({
+  data,
   limit,
-  savings,
   goal,
+  today,
   onConfirm,
   onClose,
 }: {
+  data: FinanceData;
   limit: LimitOk;
-  savings: Kopecks;
-  goal?: Goal;
+  goal: Goal;
+  today: ISODate;
   onConfirm: (amount: Kopecks) => void;
   onClose: () => void;
 }) {
   const [text, setText] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const balance = goalBalance(data, goal, today);
   const amount = parseRubInput(text);
-  const preview = amount ? previewWithdrawal(limit, amount, savings, goal) : null;
+  const preview = amount ? previewWithdrawal(data, limit, goal, amount, today) : null;
 
   return (
-    <Sheet title="Взять из накоплений" onClose={onClose}>
-      <p className="hint">На накопительном счёте {formatRub(savings)}.</p>
+    <Sheet title={`Взять из «${goal.name}»`} onClose={onClose}>
+      <p className="hint">На счёте цели {formatRub(balance)}.</p>
       <AmountPad
         fields={[{ label: 'Сколько взять', text }]}
         active={0}
@@ -114,15 +145,13 @@ export function WithdrawSheet({
             Лимит вырастет с <b className="num">{formatRubWhole(preview.limitFrom)}</b> до{' '}
             <b className="num">{formatRubWhole(preview.limitTo)}</b> в день до {formatDayMonth(limit.horizon)}.
           </p>
-          {goal && (
-            <p>
-              Цель «{goal.name}»: {formatPermille(preview.progressFrom)} → {formatPermille(preview.progressTo)}
-              {preview.goalDelayDays !== null && preview.goalDelayDays > 0
-                ? `, отодвинется примерно на ${approxDuration(preview.goalDelayDays)}`
-                : ''}
-              .
-            </p>
-          )}
+          <p>
+            Цель «{goal.name}»: {formatPermille(preview.progressFrom)} → {formatPermille(preview.progressTo)}
+            {preview.goalDelayDays !== null && preview.goalDelayDays > 0
+              ? `, отодвинется примерно на ${approxDuration(preview.goalDelayDays)}`
+              : ''}
+            .
+          </p>
         </div>
       )}
       {error && <p className="field-error">{error}</p>}
@@ -132,7 +161,7 @@ export function WithdrawSheet({
         className="btn btn-primary btn-wide"
         onClick={() => {
           if (!amount) return setError('Введите сумму');
-          if (amount > savings) return setError('На накопительном счёте меньше');
+          if (amount > balance) return setError('На счёте цели меньше');
           onConfirm(amount);
         }}
       >

@@ -829,6 +829,10 @@
   cursor: default;
 }
 
+.add-goal {
+  justify-content: center;
+}
+
 .goal-pct {
   margin-left: auto;
   color: var(--text);

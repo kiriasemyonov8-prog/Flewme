@@ -29,8 +29,8 @@ function sourceKey(s: PurchaseSource): string {
   return s.kind === 'other' ? `other:${s.accountId}` : s.kind;
 }
 
-function explain(r: PurchaseResult, data: FinanceData): string {
-  const goal = data.goals[0];
+function explain(r: PurchaseResult): string {
+  const goal = r.goalAfter?.goal;
   switch (r.reason) {
     case 'fits':
       return `По вашим данным хватает: покупка забирает ${r.sharePercent}% доступных денег.`;
@@ -60,11 +60,14 @@ function recommendationText(rec: Recommendation, data: FinanceData): string {
         : `Откладывать ${formatRubWhole(rec.perDay)} в день из лимита — хватит примерно к ${formatDayMonth(rec.readyDate)}` +
             (names.length ? `, не трогая: ${names.join(', ')}.` : '.');
     }
-    case 'fromSavings':
+    case 'fromSavings': {
+      const i = rec.impact;
+      if (!i) return `Взять ${formatRub(rec.amount)} из накоплений, не привязанных к целям.`;
       return (
-        `Взять ${formatRub(rec.amount)} из накоплений: цель ${formatPermille(rec.progressFrom)} → ${formatPermille(rec.progressTo)}` +
-        (rec.goalDelayDays ? `, отодвинется примерно на ${approxDuration(rec.goalDelayDays)}.` : '.')
+        `Взять ${formatRub(rec.amount)} из накоплений: цель «${i.goal.name}» ${formatPermille(i.from)} → ${formatPermille(i.to)}` +
+        (i.delayDays ? `, отодвинется примерно на ${approxDuration(i.delayDays)}.` : '.')
       );
+    }
     case 'cheaper':
       return `Без компромисса сейчас укладывается покупка до ${formatRub(rec.upTo)}.`;
   }
@@ -80,7 +83,7 @@ export function PurchaseScreen({ store }: { store: FinanceStore }) {
   const [error, setError] = useState<string | null>(null);
 
   const price = parseRubInput(text);
-  const result = shown && price && limit.status === 'ok' ? evaluatePurchase(data, limit, price, source, today, data.goals[0], method) : null;
+  const result = shown && price && limit.status === 'ok' ? evaluatePurchase(data, limit, price, source, today, method) : null;
 
   const sources: { value: string; label: string; source: PurchaseSource }[] = [
     { value: 'main', label: 'Основной', source: { kind: 'main' } },
@@ -145,7 +148,7 @@ export function PurchaseScreen({ store }: { store: FinanceStore }) {
               <span>{VERDICTS[result.verdict].word}</span>
             </div>
             <div className="verdict-price num">{formatRub(result.price)}</div>
-            <p className="verdict-text">{explain(result, data)}</p>
+            <p className="verdict-text">{explain(result)}</p>
             <div className="list-row">
               <span className="row-sub">Доступно из выбранного</span>
               <span className="num">{formatRub(result.available)}</span>
@@ -160,7 +163,7 @@ export function PurchaseScreen({ store }: { store: FinanceStore }) {
             )}
             {result.goalAfter && result.shortfall === 0 && (
               <div className="list-row">
-                <span className="row-sub">Прогресс цели</span>
+                <span className="row-sub">Цель «{result.goalAfter.goal.name}»</span>
                 <span className="num">
                   {formatPermille(result.goalAfter.from)} → {formatPermille(result.goalAfter.to)}
                   {result.goalAfter.delayDays ? ` (≈ ${approxDuration(result.goalAfter.delayDays)})` : ''}

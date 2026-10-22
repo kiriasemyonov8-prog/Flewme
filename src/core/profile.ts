@@ -70,7 +70,10 @@ export function setAccountBalance(
   };
 }
 
-/** Создать основной или накопительный счёт (если его ещё нет) или другой счёт. */
+/**
+ * Создать счёт. Основной — только один. Накопительных может быть несколько (у каждой цели свой):
+ * первый получает id 'savings', остальные — переданный id.
+ */
 export function addAccount(
   data: FinanceData,
   kind: AccountKind,
@@ -81,9 +84,10 @@ export function addAccount(
   name?: string,
   paidOnAsOf: string[] = [],
 ): FinanceData {
-  if (kind !== 'other' && data.accounts.some((a) => a.kind === kind)) return data;
+  if (kind === 'main' && data.accounts.some((a) => a.kind === 'main')) return data;
+  const firstSavings = kind === 'savings' && !data.accounts.some((a) => a.id === 'savings');
   const account: Account = {
-    id: kind === 'other' ? id : kind,
+    id: kind === 'main' ? 'main' : firstSavings ? 'savings' : id,
     kind,
     name: kind === 'main' ? ACCOUNT_NAMES.main : name?.trim() || (kind === 'other' ? 'Другой счёт' : ACCOUNT_NAMES[kind]),
     amount,

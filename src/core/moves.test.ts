@@ -35,17 +35,17 @@ describe('переводы', () => {
 describe('способ накопления в окне «Покупка»', () => {
   it('из отложенного: 58 500 ₽ при 13 500 ₽ в месяц — 130 дней, «Не стоит»', () => {
     const d = demo();
-    const r = evaluatePurchase(d, limit(d), rub(90_000), { kind: 'main' }, T, d.goals[0], 'setAside');
+    const r = evaluatePurchase(d, limit(d), rub(90_000), { kind: 'main' }, T, 'setAside');
     expect(r.verdict).toBe('no');
     expect(r.readyDate).toBe('2027-02-28');
   });
 
   it('урезать лимит: 20% от 1 050 = 210 ₽ в день, 6 300 ₽ в месяц', () => {
     const d = demo();
-    const r = evaluatePurchase(d, limit(d), rub(20_000), { kind: 'main' }, T, d.goals[0], 'cutLimit');
+    const r = evaluatePurchase(d, limit(d), rub(20_000), { kind: 'main' }, T, 'cutLimit');
     // недостаёт 20 000 − 31 500 → хватает; проверим недостаток на 40 000
     expect(r.verdict).toBe('compromise');
-    const r2 = evaluatePurchase(d, limit(d), rub(40_000), { kind: 'main' }, T, d.goals[0], 'cutLimit');
+    const r2 = evaluatePurchase(d, limit(d), rub(40_000), { kind: 'main' }, T, 'cutLimit');
     // недостаёт 8 500 ₽ → ceil(8 500 × 30 / 6 300) = 41 день → «Лучше подождать»
     expect(r2.verdict).toBe('wait');
     expect(r2.recommendations.find((x) => x.type === 'saveDaily')).toMatchObject({ perDay: rub(210), method: 'cutLimit' });
