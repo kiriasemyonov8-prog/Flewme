@@ -167,8 +167,19 @@ describe('обязательные платежи', () => {
 });
 
 describe('горизонт', () => {
-  it('разовый доход раньше зарплаты становится горизонтом', () => {
+  it('ожидаемый разовый доход не сокращает дни до зарплаты и не меняет лимит', () => {
+    for (const date of [T, '2026-10-23', '2026-11-01']) {
+      const d = demo();
+      d.oneOffIncomes.push({ id: 'p', name: 'Проект', amount: rub(25_000), date });
+      const r = ok(d);
+      expect(r.horizon).toBe('2026-11-20');
+      expect(r.dailyLimit).toBe(rub(1_050));
+    }
+  });
+
+  it('если регулярных доходов нет, горизонт — ближайший разовый', () => {
     const d = demo();
+    d.regularIncomes = [];
     d.oneOffIncomes.push({ id: 'p', name: 'Проект', amount: rub(20_000), date: '2026-11-01' });
     const r = ok(d);
     expect(r.horizon).toBe('2026-11-01');

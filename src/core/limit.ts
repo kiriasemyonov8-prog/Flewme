@@ -51,11 +51,17 @@ export function currentPeriod(data: FinanceData, fallbackStart: ISODate): { key:
   return latest ? { key: latest.id, start: latest.date } : { key: 'start', start: fallbackStart };
 }
 
+/**
+ * Горизонт — ближайший ожидаемый регулярный доход (вариант А, SPEC 3.11). Разовый доход
+ * не сокращает число дней: его деньги добавляются, когда он подтверждён «Пришла».
+ * Только если регулярных доходов нет совсем, горизонтом служит ближайший разовый.
+ */
 export function findHorizon(data: FinanceData, today: ISODate): IncomeOccurrence | null {
-  const candidates = expectedIncomes(data.regularIncomes, data.oneOffIncomes, data.receipts, today)
+  const upcoming = expectedIncomes(data.regularIncomes, data.oneOffIncomes, data.receipts, today)
     .filter((o) => o.late >= today)
     .sort((a, b) => a.late.localeCompare(b.late));
-  return candidates[0] ?? null;
+  const regular = upcoming.filter((o) => !o.key.startsWith('oneoff:'));
+  return (data.regularIncomes.length > 0 ? regular[0] : upcoming[0]) ?? null;
 }
 
 function transferredSince(data: FinanceData, purpose: 'setAside' | 'saved', since: ISODate, today: ISODate): Kopecks {

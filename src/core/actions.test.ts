@@ -45,6 +45,17 @@ describe('действия', () => {
     expect(r.savePlan.periodKey).toBe('r1');
   });
 
+  it('подтверждённый разовый доход 25 000 ₽ поднимает лимит до зарплаты', () => {
+    let d = demo();
+    d = { ...d, oneOffIncomes: [{ id: 'p', name: 'Проект', amount: rub(25_000), date: T }] };
+    expect((computeLimit(d, T) as LimitOk).dailyLimit).toBe(rub(1_050));
+    d = confirmIncome(d, 'oneoff:p', rub(25_000), T, 'r', 2000);
+    const r = computeLimit(d, T) as LimitOk;
+    // Поступление начинает новый период: база 70 000, откладывание 30% = 21 000, свободно 49 000 / 30 дней
+    expect(r.horizon).toBe('2026-11-20');
+    expect(r.dailyLimit).toBe(rub(1_633) + 33);
+  });
+
   it('разовый доход сразу подтверждён и не становится горизонтом', () => {
     const d = addReceivedOneOff(demo(), 'Проект', rub(10_000), T, 'p1', 2000);
     const r = computeLimit(d, T) as LimitOk;
