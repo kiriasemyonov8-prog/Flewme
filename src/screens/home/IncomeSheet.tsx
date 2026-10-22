@@ -102,9 +102,8 @@ export function IncomeSheet({
       <AmountDisplay value={text} />
       {error && <p className="field-error">Введите сумму</p>}
       <Keypad
-        value={text}
-        onChange={(v) => {
-          setText(v);
+        onChange={(update) => {
+          setText(update);
           setError(false);
         }}
       />

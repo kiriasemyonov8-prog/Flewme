@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { addExpense, addReceivedOneOff, closeDayAction, confirmIncome, incomesToConfirm } from './actions';
 import { demoData } from './demo';
-import { computeLimit, type LimitOk } from './limit';
+import { computeLimit, remainingToday, type LimitOk } from './limit';
 import { rub } from './money';
 import { robotMood } from './mood';
 import { spentTodayMain } from './balance';
@@ -18,6 +18,17 @@ describe('действия', () => {
     expect(after.dailyLimit).toBe(before);
     expect(robotMood(spentTodayMain(d, T), after.dailyLimit)).toBe('thoughtful');
     expect(d.lastCategoryId).toBe('fun');
+  });
+
+  it('остаток на сегодня уменьшается с каждой тратой, перерасход показывается отдельно', () => {
+    let d = demo();
+    const L = (computeLimit(d, T) as LimitOk).dailyLimit;
+    d = addExpense(d, { amount: rub(300), accountId: 'main', categoryId: 'food', date: T }, 'a', 2000);
+    expect(remainingToday(L, spentTodayMain(d, T))).toEqual({ left: rub(750), over: 0 });
+    d = addExpense(d, { amount: rub(900), accountId: 'main', categoryId: 'food', date: T }, 'b', 2001);
+    expect(remainingToday(L, spentTodayMain(d, T))).toEqual({ left: 0, over: rub(150) });
+    d = addExpense(d, { amount: rub(5_000), accountId: 'savings', categoryId: 'food', date: T }, 'c', 2002);
+    expect(remainingToday(L, spentTodayMain(d, T)).over).toBe(rub(150));
   });
 
   it('к подтверждению предлагается ближайшая зарплата', () => {

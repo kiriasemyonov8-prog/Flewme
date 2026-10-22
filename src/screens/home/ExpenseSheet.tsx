@@ -71,9 +71,8 @@ export function ExpenseSheet({
       {accountId !== main?.id && <p className="hint">Траты не с основного счёта на дневной лимит не влияют.</p>}
 
       <Keypad
-        value={text}
-        onChange={(v) => {
-          setText(v);
+        onChange={(update) => {
+          setText(update);
           setError(false);
         }}
       />

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { addDays, addMonths, dateInMonth, diffDays } from './dates';
 import { closeDay, closedStreak, isBalanceStale, unclosedDays } from './days';
 import { DEMO_GOAL, demoData } from './demo';
-import { formatPermille, formatRub, formatRubWhole, parseRubInput, pluralDays } from './format';
+import { formatPermille, formatRub, formatRubWhole, formatRubWholeUp, parseRubInput, pluralDays } from './format';
 import { goalProgressPermille } from './goal';
 import { computeLimit, type LimitOk } from './limit';
 import { kop, percentOf, rub } from './money';
@@ -150,6 +150,7 @@ describe('форматирование', () => {
     expect(formatRub(kop(105_001))).toBe('1 050,01 ₽');
     expect(formatRubWhole(kop(109_827))).toBe('1 098 ₽');
     expect(formatRubWhole(kop(-150))).toBe('−2 ₽');
+    expect(formatRubWholeUp(kop(10_173))).toBe('102 ₽');
     expect(parseRubInput('1050')).toBe(105_000);
     expect(parseRubInput('1050,5')).toBe(105_050);
     expect(parseRubInput('0,07')).toBe(7);

@@ -66,6 +66,15 @@ function transferredSince(data: FinanceData, purpose: 'setAside' | 'saved', sinc
   );
 }
 
+/**
+ * Сколько ещё можно потратить сегодня: лимит дня минус траты за сегодня с основного счёта.
+ * Сам лимит дня от трат не меняется (по нему считается настроение робота).
+ */
+export function remainingToday(dailyLimit: Kopecks, spentToday: Kopecks): { left: Kopecks; over: Kopecks } {
+  const diff = sub(dailyLimit, spentToday);
+  return diff >= 0 ? { left: diff, over: ZERO } : { left: ZERO, over: sub(spentToday, dailyLimit) };
+}
+
 export function computeLimit(data: FinanceData, today: ISODate): LimitResult {
   const missing: MissingData[] = [];
   const startBalance = startOfDayBalance(data, today);

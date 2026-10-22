@@ -2,18 +2,24 @@ import { Delete } from 'lucide-react';
 
 const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', ',', '0', 'back'] as const;
 
-/** Экранная цифровая клавиатура для сумм (SPEC, раздел 4). Значение — строка вида «1050,5». */
-export function Keypad({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  function press(key: (typeof KEYS)[number]) {
-    if (key === 'back') return onChange(value.slice(0, -1));
-    if (key === ',') {
-      if (value.includes(',')) return;
-      return onChange((value || '0') + ',');
-    }
-    const [whole, frac] = value.split(',');
-    if (frac !== undefined && frac.length >= 2) return;
-    if (frac === undefined && whole.length >= 9) return;
-    onChange(value === '0' ? key : value + key);
+type Key = (typeof KEYS)[number];
+
+function apply(value: string, key: Key): string {
+  if (key === 'back') return value.slice(0, -1);
+  if (key === ',') return value.includes(',') ? value : (value || '0') + ',';
+  const [whole, frac] = value.split(',');
+  if (frac !== undefined && frac.length >= 2) return value;
+  if (frac === undefined && whole.length >= 9) return value;
+  return value === '0' ? key : value + key;
+}
+
+/**
+ * Экранная цифровая клавиатура для сумм (SPEC, раздел 4). Значение — строка вида «1050,5».
+ * Изменение передаётся функцией от прежнего значения, чтобы быстрые нажатия подряд не терялись.
+ */
+export function Keypad({ onChange }: { onChange: (update: (prev: string) => string) => void }) {
+  function press(key: Key) {
+    onChange((prev) => apply(prev, key));
   }
 
   return (

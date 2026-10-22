@@ -4,9 +4,9 @@ import { Robot } from '../assets/character';
 import { spentTodayMain } from '../core/balance';
 import { addDays, type ISODate } from '../core/dates';
 import { closedStreak, isClosed } from '../core/days';
-import { formatDayMonth, formatRubWhole, pluralDays } from '../core/format';
+import { formatDayMonth, formatRubWhole, formatRubWholeUp, pluralDays } from '../core/format';
+import { remainingToday } from '../core/limit';
 import { robotMood } from '../core/mood';
-import { sub } from '../core/money';
 import type { FinanceStore } from '../state/useFinance';
 import { DemoBadge } from '../ui/DemoBadge';
 import { CloseDaySheet } from './home/CloseDaySheet';
@@ -44,6 +44,7 @@ export function HomeScreen({ store, homeSignal }: { store: FinanceStore; homeSig
   }, [chat]);
 
   const spent = spentTodayMain(data, today);
+  const remaining = limit.status === 'ok' ? remainingToday(limit.dailyLimit, spent) : null;
   const yesterday = addDays(today, -1);
   const yesterdayOpen = yesterday >= data.startedOn && !isClosed(data, yesterday);
   const todayClosed = isClosed(data, today);
@@ -59,7 +60,7 @@ export function HomeScreen({ store, homeSignal }: { store: FinanceStore; homeSig
   } else if (mood === 'calm') {
     phrase = `Сегодня трат пока нет. Можно до ${formatRubWhole(limit.dailyLimit)}.`;
   } else if (mood === 'joy') {
-    phrase = `Идём в рамках дня: осталось ${formatRubWhole(sub(limit.dailyLimit, spent))}.`;
+    phrase = 'Идём в рамках дня, всё по плану.';
   } else if (mood === 'thoughtful') {
     phrase = 'Чуть больше лимита дня. Ничего страшного, следующие дни немного подстроятся.';
   } else {
@@ -103,8 +104,15 @@ export function HomeScreen({ store, homeSignal }: { store: FinanceStore; homeSig
               <Wallet size={18} aria-hidden />
               <span>На сегодня</span>
             </div>
-            <div className="stat-value num">{formatRubWhole(limit.dailyLimit)}</div>
-            <div className="stat-note">{yesterdayOpen ? 'данные за вчера не записаны' : 'можно потратить'}</div>
+            <div className="stat-value num">{formatRubWhole(remaining!.left)}</div>
+            <div className="stat-note">
+              {remaining!.over > 0
+                ? `сверх лимита на ${formatRubWholeUp(remaining!.over)}`
+                : spent > 0
+                  ? `осталось из ${formatRubWhole(limit.dailyLimit)}`
+                  : 'можно потратить'}
+            </div>
+            {yesterdayOpen && <div className="stat-note">данные за вчера не записаны</div>}
           </section>
         </div>
       )}

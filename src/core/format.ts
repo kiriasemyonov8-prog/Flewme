@@ -37,6 +37,11 @@ export function parseRubInput(text: string): Kopecks | null {
   return value > 0 ? (value as Kopecks) : null;
 }
 
+/** Округление вверх до рубля (для перерасхода, чтобы не преуменьшать): 10173 → «102 ₽». */
+export function formatRubWholeUp(value: Kopecks): string {
+  return formatRub((Math.ceil(value / 100) * 100) as Kopecks);
+}
+
 const MONTHS_GEN = [
   'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
   'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря',
