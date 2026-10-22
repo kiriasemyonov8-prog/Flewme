@@ -72,27 +72,7 @@ export function RegularIncomeSheet({
   return (
     <Sheet title={income ? 'Регулярный доход' : 'Новый регулярный доход'} onClose={onClose}>
       <TextField label="Название" value={name} onChange={setName} />
-      <Segmented
-        label="Сумма"
-        value={amountKind}
-        onChange={(v) => {
-          setAmountKind(v);
-          setActive(0);
-        }}
-        options={[
-          { value: 'fixed', label: 'Точная сумма' },
-          { value: 'range', label: 'Диапазон' },
-        ]}
-      />
-      <AmountPad
-        fields={fields}
-        active={active}
-        onActivate={setActive}
-        onChange={(i, update) => {
-          setTexts((t) => t.map((x, j) => (j === i ? update(x) : x)));
-          setError(null);
-        }}
-      />
+      <div className="sub-title">Когда приходит</div>
       <Segmented
         label="Когда приходит"
         value={scheduleKind}
@@ -115,6 +95,30 @@ export function RegularIncomeSheet({
         selected={scheduleKind === 'window' && days.length === 2 ? range(days[0], days[1]) : days}
         onToggle={toggleDay}
       />
+      <p className="schedule-summary">{scheduleSummary(scheduleKind, days)}</p>
+
+      <div className="sub-title">Сколько</div>
+      <Segmented
+        label="Сумма"
+        value={amountKind}
+        onChange={(v) => {
+          setAmountKind(v);
+          setActive(0);
+        }}
+        options={[
+          { value: 'fixed', label: 'Точная сумма' },
+          { value: 'range', label: 'Диапазон' },
+        ]}
+      />
+      <AmountPad
+        fields={fields}
+        active={active}
+        onActivate={setActive}
+        onChange={(i, update) => {
+          setTexts((t) => t.map((x, j) => (j === i ? update(x) : x)));
+          setError(null);
+        }}
+      />
       {error && <p className="field-error">{error}</p>}
       <button type="button" className="btn btn-primary btn-wide" onClick={save}>
         Сохранить
@@ -126,6 +130,13 @@ export function RegularIncomeSheet({
       )}
     </Sheet>
   );
+}
+
+function scheduleSummary(kind: ScheduleKind, days: number[]): string {
+  if (days.length === 0) return 'Дни пока не выбраны';
+  if (kind === 'days') return `Каждый месяц: ${days.join(' и ')} числа`;
+  if (days.length === 1) return `Начало окна: ${days[0]} число. Теперь отметьте последний день.`;
+  return `Каждый месяц между ${days[0]} и ${days[1]} числом`;
 }
 
 function range(a: number, b: number): number[] {

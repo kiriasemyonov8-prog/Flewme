@@ -264,12 +264,12 @@ export function HomeScreen({
           data={data}
           today={today}
           onClose={() => setSheet(null)}
-          onConfirm={(key, amount) => {
-            store.confirmIncome(key, amount);
+          onConfirm={(key, amount, date) => {
+            store.confirmIncome(key, amount, date);
             setSheet(null);
           }}
-          onOneOff={(name, amount) => {
-            store.addReceivedOneOff(name, amount);
+          onOneOff={(name, amount, date) => {
+            store.addReceivedOneOff(name, amount, date);
             setSheet(null);
           }}
         />

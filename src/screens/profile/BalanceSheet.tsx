@@ -50,8 +50,20 @@ export function BalanceSheet({
   }
 
   return (
-    <Sheet title={account ? (kind === 'other' ? account.name : TITLES[kind]) : `Добавить: ${TITLES[kind].toLowerCase()}`} onClose={onClose}>
-      {kind === 'other' && <TextField label="Название" value={name} onChange={setName} placeholder="Например, карта мамы" />}
+    <Sheet title={account ? account.name : `Добавить: ${TITLES[kind].toLowerCase()}`} onClose={onClose}>
+      <TextField
+        label="Название"
+        value={name}
+        onChange={setName}
+        placeholder={kind === 'other' ? 'Например, карта мамы' : TITLES[kind]}
+      />
+      {kind !== 'other' && (
+        <p className="hint">
+          {kind === 'main'
+            ? 'С этого счёта считается дневной лимит.'
+            : 'Здесь копится цель: прогресс цели равен сумме на этом счёте.'}
+        </p>
+      )}
       <p className="hint">Сколько сейчас на счёте — посмотрите в приложении банка.</p>
       <AmountPad
         fields={[{ label: 'Сумма', text }]}

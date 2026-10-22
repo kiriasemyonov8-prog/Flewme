@@ -944,6 +944,69 @@
   box-shadow: 0 0 0 3px var(--bg), 0 0 0 5px var(--text);
 }
 
+.schedule-summary {
+  margin: 0;
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--emerald);
+}
+
+/* Барабаны времени, как в будильнике */
+.time-wheel {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 0;
+}
+
+.wheel-band {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  margin-top: 8px;
+  border-radius: 12px;
+  background: var(--surface-soft);
+  pointer-events: none;
+}
+
+.wheel {
+  position: relative;
+  width: 84px;
+  overflow-y: auto;
+  scroll-snap-type: y mandatory;
+  scrollbar-width: none;
+  -webkit-mask-image: linear-gradient(transparent, #000 35%, #000 65%, transparent);
+  mask-image: linear-gradient(transparent, #000 35%, #000 65%, transparent);
+  outline: none;
+}
+
+.wheel::-webkit-scrollbar {
+  display: none;
+}
+
+.wheel-item {
+  display: grid;
+  place-items: center;
+  scroll-snap-align: center;
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.wheel-item.is-on {
+  color: var(--text);
+  font-weight: 800;
+}
+
+.wheel-colon {
+  position: relative;
+  font-size: 24px;
+  font-weight: 800;
+}
+
 /* Календарь */
 .date-field {
   display: flex;

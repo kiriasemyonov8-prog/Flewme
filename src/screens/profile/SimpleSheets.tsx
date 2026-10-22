@@ -7,6 +7,7 @@ import type { Category } from '../../core/types';
 import { DateField } from '../../ui/Calendar';
 import { AmountPad, TextField } from '../../ui/Form';
 import { Sheet } from '../../ui/Sheet';
+import { TimeWheel } from '../../ui/TimeWheel';
 
 /** Одна сумма: транспорт в месяц и т. п. Пустое поле или 0 — выключить. */
 export function AmountSheet({
@@ -33,6 +34,19 @@ export function AmountSheet({
         onClick={() => onSave(parseRubInput(text) ?? (0 as Kopecks))}
       >
         Сохранить
+      </button>
+    </Sheet>
+  );
+}
+
+/** Время напоминания барабанами, как в будильнике. */
+export function TimeSheet({ initial, onSave, onClose }: { initial: string; onSave: (t: string) => void; onClose: () => void }) {
+  const [time, setTime] = useState(initial);
+  return (
+    <Sheet title="Время напоминания" onClose={onClose}>
+      <TimeWheel value={time} onChange={setTime} />
+      <button type="button" className="btn btn-primary btn-wide" onClick={() => onSave(time)}>
+        Готово
       </button>
     </Sheet>
   );

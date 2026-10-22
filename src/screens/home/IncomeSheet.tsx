@@ -6,6 +6,7 @@ import type { Kopecks } from '../../core/money';
 import type { IncomeOccurrence } from '../../core/schedule';
 import type { FinanceData } from '../../core/types';
 import { AmountDisplay, Keypad } from '../../ui/Keypad';
+import { DateField } from '../../ui/Calendar';
 import { Sheet } from '../../ui/Sheet';
 
 type Mode = { kind: 'list' } | { kind: 'confirm'; income: IncomeOccurrence } | { kind: 'oneOff' };
@@ -34,13 +35,14 @@ export function IncomeSheet({
 }: {
   data: FinanceData;
   today: ISODate;
-  onConfirm: (occurrenceKey: string, amount: Kopecks) => void;
-  onOneOff: (name: string, amount: Kopecks) => void;
+  onConfirm: (occurrenceKey: string, amount: Kopecks, date: ISODate) => void;
+  onOneOff: (name: string, amount: Kopecks, date: ISODate) => void;
   onClose: () => void;
 }) {
   const [mode, setMode] = useState<Mode>({ kind: 'list' });
   const [text, setText] = useState('');
   const [name, setName] = useState('');
+  const [date, setDate] = useState(today);
   const [error, setError] = useState(false);
   const expected = incomesToConfirm(data, today);
 
@@ -77,7 +79,7 @@ export function IncomeSheet({
         >
           Разовый доход
         </button>
-        <p className="hint">Деньги считаются пришедшими сегодня на основной счёт.</p>
+        <p className="hint">Деньги приходят на основной счёт. Дату и сумму укажете на следующем шаге.</p>
       </Sheet>
     );
   }
@@ -85,8 +87,8 @@ export function IncomeSheet({
   function save() {
     const amount = parseRubInput(text);
     if (!amount) return setError(true);
-    if (mode.kind === 'confirm') onConfirm(mode.income.key, amount);
-    else onOneOff(name.trim() || 'Разовый доход', amount);
+    if (mode.kind === 'confirm') onConfirm(mode.income.key, amount, date);
+    else onOneOff(name.trim() || 'Разовый доход', amount, date);
   }
 
   return (
@@ -101,6 +103,7 @@ export function IncomeSheet({
       )}
       <AmountDisplay value={text} />
       {error && <p className="field-error">Введите сумму</p>}
+      <DateField label="Когда пришла" value={date} onChange={setDate} today={today} max={today} />
       <Keypad
         onChange={(update) => {
           setText(update);

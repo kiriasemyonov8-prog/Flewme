@@ -14,7 +14,7 @@ import { RowButton, Section, Segmented, Toggle } from '../ui/Form';
 import { BalanceSheet } from './profile/BalanceSheet';
 import { PaymentSheet } from './profile/PaymentSheet';
 import { RegularIncomeSheet } from './profile/RegularIncomeSheet';
-import { AmountSheet, CATEGORY_ERRORS, CategorySheet, OneOffSheet } from './profile/SimpleSheets';
+import { AmountSheet, CATEGORY_ERRORS, CategorySheet, OneOffSheet, TimeSheet } from './profile/SimpleSheets';
 
 type Open =
   | null
@@ -24,6 +24,7 @@ type Open =
   | { kind: 'removeOneOff'; id: string; name: string }
   | { kind: 'payment'; id?: string }
   | { kind: 'transport' }
+  | { kind: 'time' }
   | { kind: 'category'; id?: string }
   | { kind: 'confirm'; title: string; text: string; label: string; run: () => void };
 
@@ -66,7 +67,11 @@ export function ProfileScreen({ store }: { store: FinanceStore }) {
       <RowButton
         key={account?.id ?? kind}
         title={account?.name ?? title}
-        sub={account ? `на ${formatDayMonth(account.asOf)}` : 'не указан'}
+        sub={
+          account
+            ? `${kind === 'main' ? 'основной, ' : kind === 'savings' ? 'накопительный, ' : ''}на ${formatDayMonth(account.asOf)}`
+            : 'не указан'
+        }
         value={account ? formatRub(account.amount) : 'Указать'}
         onClick={() => setOpen({ kind: 'balance', accountKind: kind, account })}
       />
@@ -280,15 +285,7 @@ export function ProfileScreen({ store }: { store: FinanceStore }) {
           onChange={(v) => update((d) => P.updateSettings(d, { reminderEnabled: v }))}
         />
         {data.settings.reminderEnabled && (
-          <label className="field-row">
-            <span className="field-label">Время</span>
-            <input
-              type="time"
-              className="time-input"
-              value={data.settings.reminderTime}
-              onChange={(e) => e.target.value && update((d) => P.updateSettings(d, { reminderTime: e.target.value }))}
-            />
-          </label>
+          <RowButton title="Время" value={data.settings.reminderTime} onClick={() => setOpen({ kind: 'time' })} />
         )}
       </Section>
 
@@ -370,7 +367,7 @@ export function ProfileScreen({ store }: { store: FinanceStore }) {
             update((d) => {
               if (!open.account) return P.addAccount(d, open.accountKind, amount, asOf, now, newId(), name, paidOnAsOf);
               const next = P.setAccountBalance(d, open.account.id, amount, asOf, now, paidOnAsOf);
-              return open.accountKind === 'other' ? P.renameAccount(next, open.account.id, name) : next;
+              return P.renameAccount(next, open.account.id, name);
             });
             close();
           }}
@@ -448,6 +445,16 @@ export function ProfileScreen({ store }: { store: FinanceStore }) {
           onClose={close}
           onSave={(v) => {
             update((d) => P.updateSettings(d, { transportMonthly: v }));
+            close();
+          }}
+        />
+      )}
+      {open?.kind === 'time' && (
+        <TimeSheet
+          initial={data.settings.reminderTime}
+          onClose={close}
+          onSave={(t) => {
+            update((d) => P.updateSettings(d, { reminderTime: t }));
             close();
           }}
         />

@@ -11,6 +11,7 @@ import {
   changePaymentAmount,
   emptyData,
   removeCategory,
+  renameAccount,
   renameCategory,
   setAccountBalance,
   updateSettings,
@@ -45,6 +46,11 @@ describe('свои данные с чистого листа', () => {
     // Зарплата октября уже пришла и входит в остаток.
     d = { ...d, receipts: [{ id: 'r', occurrenceKey: 'sal:2026-10', amount: rub(120_000), date: '2026-10-15', createdAt: 0 }] };
     expect((computeLimit(d, T) as LimitOk).dailyLimit).toBe(rub(1_050));
+  });
+
+  it('любой счёт можно переименовать, его роль не меняется', () => {
+    const d = renameAccount(demoData(T, 1), 'main', 'Тинькофф');
+    expect(d.accounts[0]).toMatchObject({ name: 'Тинькофф', kind: 'main' });
   });
 
   it('основной счёт создаётся только один', () => {

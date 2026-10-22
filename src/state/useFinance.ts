@@ -16,8 +16,8 @@ export interface FinanceStore {
   today: ISODate;
   limit: LimitResult;
   addExpense: (e: actions.ExpenseInput) => void;
-  confirmIncome: (occurrenceKey: string, amount: Kopecks) => void;
-  addReceivedOneOff: (name: string, amount: Kopecks) => void;
+  confirmIncome: (occurrenceKey: string, amount: Kopecks, date: ISODate) => void;
+  addReceivedOneOff: (name: string, amount: Kopecks, date: ISODate) => void;
   closeDay: (date: ISODate) => void;
   /** Применить чистое действие из core (профиль, настройки и т. п.). */
   update: (action: (d: FinanceData) => FinanceData) => void;
@@ -48,10 +48,10 @@ export function useFinance(): FinanceStore {
     today,
     limit,
     addExpense: (e) => setData((d) => actions.addExpense(d, e, newId(), Date.now())),
-    confirmIncome: (key, amount) =>
-      setData((d) => actions.confirmIncome(d, key, amount, today, newId(), Date.now())),
-    addReceivedOneOff: (name, amount) =>
-      setData((d) => actions.addReceivedOneOff(d, name, amount, today, newId(), Date.now())),
+    confirmIncome: (key, amount, date) =>
+      setData((d) => actions.confirmIncome(d, key, amount, date, newId(), Date.now())),
+    addReceivedOneOff: (name, amount, date) =>
+      setData((d) => actions.addReceivedOneOff(d, name, amount, date, newId(), Date.now())),
     closeDay: (date) => setData((d) => actions.closeDayAction(d, date)),
     update: (action) => setData(action),
     replace: (next) => setData(next),

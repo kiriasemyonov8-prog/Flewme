@@ -84,7 +84,7 @@ export function addAccount(
   const account: Account = {
     id: kind === 'other' ? id : kind,
     kind,
-    name: kind === 'other' ? name?.trim() || 'Другой счёт' : ACCOUNT_NAMES[kind],
+    name: name?.trim() || (kind === 'other' ? 'Другой счёт' : ACCOUNT_NAMES[kind]),
     amount,
     asOf,
     asOfTs: now,
@@ -98,7 +98,7 @@ export function renameAccount(data: FinanceData, accountId: string, name: string
   if (!trimmed) return data;
   return {
     ...data,
-    accounts: data.accounts.map((a) => (a.id === accountId && a.kind === 'other' ? { ...a, name: trimmed } : a)),
+    accounts: data.accounts.map((a) => (a.id === accountId ? { ...a, name: trimmed } : a)),
   };
 }
 
