@@ -1,5 +1,6 @@
 // Демо-набор автора (SPEC, раздел 14). Все даты считаются от сегодняшнего дня.
 import { addDays, addMonths, dateInMonth, dayOfMonth, monthOf, type ISODate } from './dates';
+import { DEFAULT_CATEGORIES } from './categories';
 import { rub } from './money';
 import type { Expense, FinanceData, Goal } from './types';
 
@@ -39,6 +40,9 @@ export function demoData(today: ISODate, nowTs: number): FinanceData {
   }));
 
   return {
+    startedOn: today,
+    isDemo: true,
+    categories: DEFAULT_CATEGORIES,
     accounts: [
       { id: 'main', kind: 'main', name: 'Основной счёт', amount: rub(100_000), asOf: today, asOfTs: nowTs },
       { id: 'savings', kind: 'savings', name: 'Накопления', amount: rub(100_000), asOf: today, asOfTs: nowTs },

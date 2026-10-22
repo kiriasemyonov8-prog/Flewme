@@ -24,6 +24,19 @@ export function formatRubWhole(value: Kopecks): string {
   return formatRub((value - (((value % 100) + 100) % 100)) as Kopecks);
 }
 
+/**
+ * Строка с экранной клавиатуры → копейки, без чисел с плавающей точкой.
+ * «1050» → 105000, «1050,5» → 105050, «» или «0» → null.
+ */
+export function parseRubInput(text: string): Kopecks | null {
+  const m = /^(\d{0,9})(?:,(\d{0,2}))?$/.exec(text);
+  if (!m) return null;
+  const rubles = m[1] ? Number(m[1]) : 0;
+  const kopecks = m[2] ? Number(m[2].padEnd(2, '0')) : 0;
+  const value = rubles * 100 + kopecks;
+  return value > 0 ? (value as Kopecks) : null;
+}
+
 const MONTHS_GEN = [
   'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
   'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря',

@@ -148,6 +148,13 @@ export interface FixedLimit {
 }
 
 export interface FinanceData {
+  /** День начала пользования: незакрытые дни раньше него не предлагаются. */
+  startedOn: ISODate;
+  /** Помеченные «Демо» данные. */
+  isDemo: boolean;
+  /** Категория по умолчанию при записи траты — последняя использованная. */
+  lastCategoryId?: string;
+  categories: Category[];
   accounts: Account[];
   regularIncomes: RegularIncome[];
   oneOffIncomes: OneOffIncome[];

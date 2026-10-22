@@ -1,0 +1,50 @@
+import { describe, expect, it } from 'vitest';
+import { addExpense, addReceivedOneOff, closeDayAction, confirmIncome, incomesToConfirm } from './actions';
+import { demoData } from './demo';
+import { computeLimit, type LimitOk } from './limit';
+import { rub } from './money';
+import { robotMood } from './mood';
+import { spentTodayMain } from './balance';
+
+const T = '2026-10-21';
+const demo = () => demoData(T, 1000);
+
+describe('действия', () => {
+  it('запись траты меняет настроение, но не лимит дня', () => {
+    let d = demo();
+    const before = (computeLimit(d, T) as LimitOk).dailyLimit;
+    d = addExpense(d, { amount: rub(1_100), accountId: 'main', categoryId: 'fun', date: T }, 'x', 2000);
+    const after = computeLimit(d, T) as LimitOk;
+    expect(after.dailyLimit).toBe(before);
+    expect(robotMood(spentTodayMain(d, T), after.dailyLimit)).toBe('thoughtful');
+    expect(d.lastCategoryId).toBe('fun');
+  });
+
+  it('к подтверждению предлагается ближайшая зарплата', () => {
+    const list = incomesToConfirm(demo(), T);
+    expect(list.map((o) => o.key)).toEqual(['salary:2026-11']);
+  });
+
+  it('«Пришла» добавляет деньги и начинает новый период', () => {
+    let d = demo();
+    d = confirmIncome(d, 'salary:2026-11', rub(130_000), T, 'r1', 2000);
+    const r = computeLimit(d, T) as LimitOk;
+    expect(r.startBalance).toBe(rub(230_000));
+    expect(r.horizon).toBe('2026-12-20');
+    expect(r.savePlan.periodKey).toBe('r1');
+  });
+
+  it('разовый доход сразу подтверждён и не становится горизонтом', () => {
+    const d = addReceivedOneOff(demo(), 'Проект', rub(10_000), T, 'p1', 2000);
+    const r = computeLimit(d, T) as LimitOk;
+    expect(r.horizon).toBe('2026-11-20');
+    expect(r.startBalance).toBe(rub(110_000));
+  });
+
+  it('закрытие дня записывается один раз', () => {
+    let d = addExpense(demo(), { amount: rub(500), accountId: 'main', categoryId: 'food', date: T }, 'x', 2000);
+    d = closeDayAction(d, T);
+    d = closeDayAction(d, T);
+    expect(d.closures).toEqual([{ date: T, spent: rub(500), limit: rub(1_050), saved: rub(0) }]);
+  });
+});
