@@ -10,6 +10,7 @@ import { remainingToday } from '../core/limit';
 import { robotMood } from '../core/mood';
 import type { FinanceStore } from '../state/useFinance';
 import { DemoBadge } from '../ui/DemoBadge';
+import { ThoughtCloud } from '../ui/ThoughtCloud';
 import { CloseDaySheet } from './home/CloseDaySheet';
 import { ExpenseSheet } from './home/ExpenseSheet';
 import { IncomeSheet } from './home/IncomeSheet';
@@ -75,7 +76,7 @@ export function HomeScreen({ store, homeSignal }: { store: FinanceStore; homeSig
   let phrase: string;
   if (limit.status !== 'ok') {
     mood = 'calm';
-    phrase = 'Чтобы посчитать лимит, мне нужны остаток основного счёта и ожидаемый доход.';
+    phrase = 'Для лимита нужны остаток счёта и ожидаемый доход.';
   } else if (limit.noFreeMoney) {
     phrase = 'По вашим данным свободных денег до дохода нет.';
   } else if (mood === 'calm') {
@@ -83,7 +84,7 @@ export function HomeScreen({ store, homeSignal }: { store: FinanceStore; homeSig
   } else if (mood === 'joy') {
     phrase = 'Идём в рамках дня, всё по плану.';
   } else if (mood === 'thoughtful') {
-    phrase = 'Чуть больше лимита. Ничего страшного, дальше подстроимся.';
+    phrase = 'Чуть больше лимита. Не страшно, подстроимся.';
   } else {
     phrase = 'Бывает. Завтра чуть строже, и всё выровняется.';
   }
@@ -152,10 +153,8 @@ export function HomeScreen({ store, homeSignal }: { store: FinanceStore; homeSig
             <Robot expression={mood} size={140} />
           )}
         </div>
-        <div className="thought fly" style={fly(2)} aria-live="polite">
-          <div className="thought-cloud">{phrase}</div>
-          <span className="thought-dot d1" aria-hidden />
-          <span className="thought-dot d2" aria-hidden />
+        <div className="fly" style={fly(2)}>
+          <ThoughtCloud text={phrase} />
         </div>
       </div>
 

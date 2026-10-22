@@ -249,7 +249,7 @@
   align-items: flex-start;
   gap: 4px;
   margin: auto 0;
-  padding: 8px 0 0 16px;
+  padding: 8px 0 0 8px;
 }
 
 .robot-wrap {
@@ -267,69 +267,39 @@
   cursor: pointer;
 }
 
-/* Облачко-мысль справа от головы: пухлое облако и два кружочка, ведущие к голове */
+/* Облачко-мысль справа от головы (рисунок в ThoughtCloud.tsx) */
 .thought {
   position: relative;
-  flex: 1;
-  min-width: 0;
-  margin: 6px 0 0 14px;
+  flex: none;
+  width: 200px;
+  height: 126px;
+  margin: -6px 0 0 -14px;
 }
 
-.thought-cloud {
-  position: relative;
-  padding: 20px 18px;
-  isolation: isolate;
-  border-radius: 50% / 50%;
+/* Белые кружки сливаются в одно облако; тонкий общий контур и мягкая тень */
+.thought-shape {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  fill: var(--surface);
+  filter: drop-shadow(1.2px 0 0 #dfe2da) drop-shadow(-1.2px 0 0 #dfe2da) drop-shadow(0 1.2px 0 #dfe2da)
+    drop-shadow(0 -1.2px 0 #dfe2da) drop-shadow(0 6px 10px rgb(29 34 31 / 0.07));
+}
+
+.thought-text {
+  position: absolute;
+  left: 52px;
+  top: 26px;
+  width: 124px;
+  height: 74px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   text-align: center;
-  background: var(--surface);
-  box-shadow: var(--shadow-card);
-  font-size: 14px;
-  line-height: 1.45;
-}
-
-/* «Бугорки» облака по верхнему краю */
-.thought-cloud::before,
-.thought-cloud::after {
-  content: '';
-  position: absolute;
-  z-index: -1;
-  border-radius: 50%;
-  background: var(--surface);
-}
-
-.thought-cloud::before {
-  top: -12px;
-  left: 20%;
-  width: 52px;
-  height: 52px;
-}
-
-.thought-cloud::after {
-  top: -8px;
-  right: 16%;
-  width: 40px;
-  height: 40px;
-}
-
-.thought-dot {
-  position: absolute;
-  border-radius: 50%;
-  background: var(--surface);
-  box-shadow: var(--shadow-card);
-}
-
-.thought-dot.d1 {
-  left: -12px;
-  bottom: -2px;
-  width: 14px;
-  height: 14px;
-}
-
-.thought-dot.d2 {
-  left: -24px;
-  bottom: -14px;
-  width: 8px;
-  height: 8px;
+  font-size: 12.5px;
+  line-height: 1.3;
 }
 
 .actions {
