@@ -51,12 +51,14 @@ export function BalanceSheet({
 
   return (
     <Sheet title={account ? account.name : `Добавить: ${TITLES[kind].toLowerCase()}`} onClose={onClose}>
-      <TextField
-        label="Название"
-        value={name}
-        onChange={setName}
-        placeholder={kind === 'other' ? 'Например, карта мамы' : TITLES[kind]}
-      />
+      {kind !== 'main' && (
+        <TextField
+          label="Название"
+          value={name}
+          onChange={setName}
+          placeholder={kind === 'other' ? 'Например, карта мамы' : TITLES[kind]}
+        />
+      )}
       {kind !== 'other' && (
         <p className="hint">
           {kind === 'main'

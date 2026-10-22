@@ -48,9 +48,11 @@ describe('свои данные с чистого листа', () => {
     expect((computeLimit(d, T) as LimitOk).dailyLimit).toBe(rub(1_050));
   });
 
-  it('любой счёт можно переименовать, его роль не меняется', () => {
-    const d = renameAccount(demoData(T, 1), 'main', 'Тинькофф');
-    expect(d.accounts[0]).toMatchObject({ name: 'Тинькофф', kind: 'main' });
+  it('накопления и другие счета можно переименовать, основной — нет', () => {
+    let d = renameAccount(demoData(T, 1), 'savings', 'Вклад');
+    expect(d.accounts[1]).toMatchObject({ name: 'Вклад', kind: 'savings' });
+    d = renameAccount(d, 'main', 'Тинькофф');
+    expect(d.accounts[0].name).toBe('Основной счёт');
   });
 
   it('основной счёт создаётся только один', () => {

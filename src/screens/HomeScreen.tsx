@@ -180,16 +180,7 @@ export function HomeScreen({
         </div>
       </div>
 
-      <div className="actions fly" style={fly(3)}>
-        <button type="button" className="btn btn-big btn-secondary" onClick={() => setSheet({ kind: 'income' })}>
-          Записать доход
-        </button>
-        <button type="button" className="btn btn-big btn-primary" onClick={() => setSheet({ kind: 'expense', date: today })}>
-          Записать трату
-        </button>
-      </div>
-
-      <div className="day-row fly" style={fly(4)}>
+      <div className="day-row fly" style={fly(3)}>
         {todayClosed ? (
           <span className="day-closed">
             День закрыт{streak > 1 ? ` · серия ${streak} ${pluralDays(streak)}` : ''}
@@ -199,6 +190,15 @@ export function HomeScreen({
             Закрыть день{streak > 0 ? ` · серия ${streak} ${pluralDays(streak)}` : ''}
           </button>
         )}
+      </div>
+
+      <div className="actions fly" style={fly(4)}>
+        <button type="button" className="btn btn-big btn-secondary" onClick={() => setSheet({ kind: 'income' })}>
+          Записать доход
+        </button>
+        <button type="button" className="btn btn-big btn-primary" onClick={() => setSheet({ kind: 'expense', date: today })}>
+          Записать трату
+        </button>
       </div>
 
       <div ref={chatRef} className="chat-box" style={{ transform: chatShift }}>

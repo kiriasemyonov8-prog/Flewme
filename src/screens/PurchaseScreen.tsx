@@ -93,7 +93,7 @@ export function PurchaseScreen({ store }: { store: FinanceStore }) {
   return (
     <>
       {data.isDemo && <DemoBadge />}
-      <h1 className="screen-title">Рассчитать покупку или предложи получше</h1>
+      <h1 className="screen-title">Рассчитать покупку</h1>
 
       <div className="chips" role="radiogroup" aria-label="Откуда деньги">
         {sources.map((s) => (
@@ -196,7 +196,7 @@ export function PurchaseScreen({ store }: { store: FinanceStore }) {
 
           {result.recommendations.length > 0 && (
             <section className="card list-card">
-              <h2 className="card-title">Предложи получше</h2>
+              <h2 className="card-title">Рекомендации</h2>
               <ul className="recs">
                 {result.recommendations.map((rec) => (
                   <li key={rec.type}>{recommendationText(rec, data)}</li>

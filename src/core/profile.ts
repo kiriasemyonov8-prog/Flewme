@@ -85,7 +85,7 @@ export function addAccount(
   const account: Account = {
     id: kind === 'other' ? id : kind,
     kind,
-    name: name?.trim() || (kind === 'other' ? 'Другой счёт' : ACCOUNT_NAMES[kind]),
+    name: kind === 'main' ? ACCOUNT_NAMES.main : name?.trim() || (kind === 'other' ? 'Другой счёт' : ACCOUNT_NAMES[kind]),
     amount,
     asOf,
     asOfTs: now,
@@ -99,7 +99,8 @@ export function renameAccount(data: FinanceData, accountId: string, name: string
   if (!trimmed) return data;
   return {
     ...data,
-    accounts: data.accounts.map((a) => (a.id === accountId ? { ...a, name: trimmed } : a)),
+    // Основной счёт не переименовывается: с него считается лимит, название должно оставаться понятным.
+    accounts: data.accounts.map((a) => (a.id === accountId && a.kind !== 'main' ? { ...a, name: trimmed } : a)),
   };
 }
 
