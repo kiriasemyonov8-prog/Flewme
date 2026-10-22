@@ -139,6 +139,10 @@ export interface SavePlan {
   periodStart: ISODate;
   percent: number;
   amount: Kopecks;
+  /** День расчёта: в этот день сумма ещё следует за исправлениями данных. */
+  createdOn: ISODate;
+  /** Отпечаток доходов, платежей и транспорта: если они изменились, сумма считается заново. */
+  basis: string;
 }
 
 /** Зафиксированный лимит периода в режиме «на счёт». */
@@ -155,6 +159,8 @@ export interface FinanceData {
   /** Категория по умолчанию при записи траты — последняя использованная. */
   lastCategoryId?: string;
   categories: Category[];
+  /** Анкета «На чём не готов экономить». Влияет только на рекомендации, не на лимит. */
+  questionnaire: Questionnaire;
   accounts: Account[];
   regularIncomes: RegularIncome[];
   oneOffIncomes: OneOffIncome[];

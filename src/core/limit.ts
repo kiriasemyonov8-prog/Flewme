@@ -99,17 +99,27 @@ export function computeLimit(data: FinanceData, today: ISODate): LimitResult {
   const transportReserve = mulInt(divFloor(data.settings.transportMonthly, CONFIG.transportBaseDays), days);
   const base = sub(sub(startBalance, sum(reservedPayments.map((p) => p.amount))), transportReserve);
 
-  // Откладывание фиксируется в начале периода (вариант А).
+  // Откладывание фиксируется в начале периода (вариант А). Считается заново, только если
+  // начался новый период, изменился процент или доходы/платежи/транспорт, либо в день расчёта
+  // (пока человек вводит и исправляет данные). Обычные траты и обновления остатка его не меняют.
   const period = currentPeriod(data, main.asOf);
   const percent = data.settings.savePercent;
+  const basis = JSON.stringify([data.regularIncomes, data.oneOffIncomes, data.payments, data.settings.transportMonthly]);
+  const kept = data.savePlan;
   const plan: SavePlan =
-    data.savePlan && data.savePlan.periodKey === period.key && data.savePlan.percent === percent
-      ? data.savePlan
+    kept &&
+    kept.periodKey === period.key &&
+    kept.percent === percent &&
+    kept.basis === basis &&
+    kept.createdOn !== today
+      ? kept
       : {
           periodKey: period.key,
-          periodStart: period.start,
+          periodStart: kept?.periodKey === period.key ? kept.periodStart : period.start,
           percent,
           amount: base > 0 ? percentOf(base, percent) : ZERO,
+          createdOn: kept?.periodKey === period.key && kept.basis === basis && kept.percent === percent ? kept.createdOn : today,
+          basis,
         };
   const setAsideLeft = max(ZERO, sub(plan.amount, transferredSince(data, 'setAside', plan.periodStart, today)));
   const setAside = min(setAsideLeft, max(ZERO, base));

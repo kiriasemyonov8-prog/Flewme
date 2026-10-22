@@ -1,40 +1,60 @@
+import { Plus } from 'lucide-react';
 import { useState } from 'react';
 import type { ExpenseInput } from '../../core/actions';
+import { MAX_CATEGORIES } from '../../core/categories';
 import type { ISODate } from '../../core/dates';
 import { formatDayMonth, parseRubInput } from '../../core/format';
 import type { FinanceData } from '../../core/types';
+import { newId } from '../../state/useFinance';
+import { DateField } from '../../ui/Calendar';
 import { AmountDisplay, Keypad } from '../../ui/Keypad';
 import { Sheet } from '../../ui/Sheet';
 
 export function ExpenseSheet({
   data,
-  date,
+  date: initialDate,
   today,
   onSave,
+  onAddCategory,
   onClose,
 }: {
   data: FinanceData;
   date: ISODate;
   today: ISODate;
   onSave: (e: ExpenseInput) => void;
+  /** Добавить свою категорию; возвращает текст ошибки или null. */
+  onAddCategory: (id: string, name: string) => string | null;
   onClose: () => void;
 }) {
   const main = data.accounts.find((a) => a.kind === 'main');
   const [text, setText] = useState('');
+  const [date, setDate] = useState(initialDate);
   const [categoryId, setCategoryId] = useState(data.lastCategoryId ?? data.categories[0].id);
   const [accountId, setAccountId] = useState(main?.id ?? data.accounts[0]?.id);
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [newCategory, setNewCategory] = useState<string | null>(null);
+  const [categoryError, setCategoryError] = useState<string | null>(null);
 
   function save() {
     const amount = parseRubInput(text);
-    if (!amount || !accountId) return setError(true);
+    if (!accountId) return setError('Сначала укажите основной счёт в профиле');
+    if (!amount) return setError('Введите сумму');
     onSave({ amount, accountId, categoryId, date });
   }
 
+  function addCategory() {
+    const id = newId();
+    const err = onAddCategory(id, newCategory ?? '');
+    if (err) return setCategoryError(err);
+    setCategoryId(id);
+    setNewCategory(null);
+    setCategoryError(null);
+  }
+
   return (
-    <Sheet title={date === today ? 'Записать трату' : `Трата за ${formatDayMonth(date)}`} onClose={onClose}>
+    <Sheet title={initialDate === today ? 'Записать трату' : `Трата за ${formatDayMonth(initialDate)}`} onClose={onClose}>
       <AmountDisplay value={text} />
-      {error && <p className="field-error">Введите сумму</p>}
+      {error && <p className="field-error">{error}</p>}
 
       <div className="chips" role="radiogroup" aria-label="Категория">
         {data.categories.map((c) => (
@@ -50,7 +70,30 @@ export function ExpenseSheet({
             {c.name}
           </button>
         ))}
+        {newCategory === null && data.categories.length < MAX_CATEGORIES && (
+          <button type="button" className="chip chip-add" onClick={() => setNewCategory('')}>
+            <Plus size={16} aria-hidden /> Своя
+          </button>
+        )}
       </div>
+      {newCategory !== null && (
+        <div className="inline-add">
+          <input
+            className="text-field"
+            autoFocus
+            placeholder="Название категории"
+            value={newCategory}
+            onChange={(e) => {
+              setNewCategory(e.target.value);
+              setCategoryError(null);
+            }}
+          />
+          <button type="button" className="btn btn-secondary" onClick={addCategory}>
+            Добавить
+          </button>
+        </div>
+      )}
+      {categoryError && <p className="field-error">{categoryError}</p>}
 
       {data.accounts.length > 1 && (
         <div className="chips chips-small" role="radiogroup" aria-label="Счёт">
@@ -70,10 +113,12 @@ export function ExpenseSheet({
       )}
       {accountId !== main?.id && <p className="hint">Траты не с основного счёта на дневной лимит не влияют.</p>}
 
+      <DateField label="Дата" value={date} onChange={setDate} today={today} max={today} />
+
       <Keypad
         onChange={(update) => {
           setText(update);
-          setError(false);
+          setError(null);
         }}
       />
       <button type="button" className="btn btn-primary btn-wide" onClick={save}>

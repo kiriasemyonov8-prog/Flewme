@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { BottomNav, type Tab } from './ui/BottomNav';
 import { HomeScreen } from './screens/HomeScreen';
+import { ProfileScreen } from './screens/ProfileScreen';
 import { StubScreen } from './screens/StubScreen';
 import { useFinance } from './state/useFinance';
 import './ui/app.css';
@@ -13,12 +14,15 @@ export function App() {
   function changeTab(next: Tab) {
     if (next === 'home') setHomeSignal((n) => n + 1);
     setTab(next);
+    window.scrollTo({ top: 0 });
   }
 
   return (
     <div className="app">
       <main className="screen">
-        {tab === 'home' && <HomeScreen store={store} homeSignal={homeSignal} />}
+        {tab === 'home' && (
+          <HomeScreen store={store} homeSignal={homeSignal} onOpenProfile={() => changeTab('profile')} />
+        )}
         {tab === 'finance' && (
           <StubScreen title="Финансы и цели" note="Доходы, расходы и цели появятся на шаге 5." />
         )}
@@ -28,9 +32,7 @@ export function App() {
             note="Проверка крупных покупок появится на шаге 5."
           />
         )}
-        {tab === 'profile' && (
-          <StubScreen title="Профиль" note="Счета, доходы и платежи, настройки появятся на шаге 4." />
-        )}
+        {tab === 'profile' && <ProfileScreen store={store} />}
       </main>
       <BottomNav active={tab} onChange={changeTab} />
     </div>

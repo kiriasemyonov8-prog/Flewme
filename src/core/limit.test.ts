@@ -227,6 +227,27 @@ describe('откладывание фиксируется в начале пер
     expect(r.savePlan.periodKey).toBe('r-nov');
   });
 
+  it('новый обязательный платёж на следующий день пересчитывает откладывание', () => {
+    const d = demo();
+    d.savePlan = ok(d).savePlan;
+    d.payments.push({ id: 'loan', name: 'Кредит', day: 25, amounts: [{ fromMonth: '2026-01', amount: rub(10_000) }] });
+    const r = ok(d, '2026-10-22');
+    // транспорт за 21-е: 500; база = 99 500 − 40 000 − 10 000 − 14 500 = 35 000; 30% = 10 500
+    expect(r.setAside).toBe(rub(10_500));
+    expect(r.savePlan.createdOn).toBe('2026-10-22');
+  });
+
+  it('в день расчёта откладывание следует за исправлением остатка, на следующий день — нет', () => {
+    const d = demo();
+    d.savePlan = ok(d).savePlan;
+    d.accounts[0].amount = rub(90_000);
+    expect(ok(d).setAside).toBe(rub(10_500));
+    d.savePlan = ok(d).savePlan;
+    d.accounts[0].amount = rub(80_000);
+    d.accounts[0].asOf = '2026-10-22';
+    expect(ok(d, '2026-10-22').setAside).toBe(rub(10_500));
+  });
+
   it('изменение процента пересчитывает откладывание', () => {
     const d = demo();
     d.savePlan = ok(d).savePlan;

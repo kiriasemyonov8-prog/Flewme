@@ -56,6 +56,11 @@ export function dayOfMonth(date: ISODate): number {
   return Number(date.slice(8, 10));
 }
 
+/** День недели, понедельник = 0 … воскресенье = 6. */
+export function weekdayMon0(date: ISODate): number {
+  return (new Date(toUtc(date)).getUTCDay() + 6) % 7;
+}
+
 /** Сегодняшняя локальная дата устройства. */
 export function todayLocal(now: Date = new Date()): ISODate {
   return makeDate(now.getFullYear(), now.getMonth() + 1, now.getDate());

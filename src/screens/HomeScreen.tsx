@@ -8,6 +8,8 @@ import { closedStreak, isClosed } from '../core/days';
 import { formatDayMonth, formatRubWhole, formatRubWholeUp, pluralDays } from '../core/format';
 import { remainingToday } from '../core/limit';
 import { robotMood } from '../core/mood';
+import { addCategory } from '../core/profile';
+import { CATEGORY_ERRORS } from './profile/SimpleSheets';
 import type { FinanceStore } from '../state/useFinance';
 import { DemoBadge } from '../ui/DemoBadge';
 import { ThoughtCloud } from '../ui/ThoughtCloud';
@@ -26,7 +28,15 @@ const ROBOT_ICON = 48;
 /** Порядковый номер для каскадной анимации «улёта» вверх. */
 const fly = (i: number) => ({ '--i': i }) as CSSProperties;
 
-export function HomeScreen({ store, homeSignal }: { store: FinanceStore; homeSignal: number }) {
+export function HomeScreen({
+  store,
+  homeSignal,
+  onOpenProfile,
+}: {
+  store: FinanceStore;
+  homeSignal: number;
+  onOpenProfile: () => void;
+}) {
   const { data, today, limit } = store;
   const [sheet, setSheet] = useState<SheetState>(null);
   const [chat, setChat] = useState(false);
@@ -102,6 +112,18 @@ export function HomeScreen({ store, homeSignal }: { store: FinanceStore; homeSig
           <span>Как прошёл вчерашний день? Запишем траты, это займёт минуту.</span>
           <button type="button" className="btn btn-secondary" onClick={() => setSheet({ kind: 'close', date: yesterday })}>
             Записать
+          </button>
+        </div>
+      )}
+
+      {limit.status === 'noData' && (
+        <div className="card notice fly" style={fly(1)}>
+          <span>
+            Чтобы посчитать лимит, укажите{' '}
+            {limit.missing.map((m) => (m === 'mainBalance' ? 'остаток основного счёта' : 'ожидаемый доход')).join(' и ')}.
+          </span>
+          <button type="button" className="btn btn-primary" onClick={onOpenProfile}>
+            Указать
           </button>
         </div>
       )}
@@ -225,6 +247,12 @@ export function HomeScreen({ store, homeSignal }: { store: FinanceStore; homeSig
           date={sheet.date}
           today={today}
           onClose={() => setSheet(sheet.thenClose ? { kind: 'close', date: sheet.date } : null)}
+          onAddCategory={(id, name) => {
+            const result = addCategory(data, id, name);
+            if (typeof result === 'string') return CATEGORY_ERRORS[result];
+            store.replace(result);
+            return null;
+          }}
           onSave={(e) => {
             store.addExpense(e);
             setSheet(sheet.thenClose ? { kind: 'close', date: sheet.date } : null);

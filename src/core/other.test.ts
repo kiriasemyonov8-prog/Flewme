@@ -2,7 +2,15 @@ import { describe, expect, it } from 'vitest';
 import { addDays, addMonths, dateInMonth, diffDays } from './dates';
 import { closeDay, closedStreak, isBalanceStale, unclosedDays } from './days';
 import { DEMO_GOAL, demoData } from './demo';
-import { formatPermille, formatRub, formatRubWhole, formatRubWholeUp, parseRubInput, pluralDays } from './format';
+import {
+  formatPermille,
+  formatRub,
+  formatRubWhole,
+  formatRubWholeUp,
+  parseRubInput,
+  pluralDays,
+  toRubInput,
+} from './format';
 import { goalProgressPermille } from './goal';
 import { computeLimit, type LimitOk } from './limit';
 import { kop, percentOf, rub } from './money';
@@ -155,6 +163,7 @@ describe('форматирование', () => {
     expect(parseRubInput('1050,5')).toBe(105_050);
     expect(parseRubInput('0,07')).toBe(7);
     expect(parseRubInput('')).toBeNull();
+    for (const v of [105_000, 105_050, 105_005, 7]) expect(parseRubInput(toRubInput(kop(v)))).toBe(v);
     expect(parseRubInput('1,234')).toBeNull();
     expect(pluralDays(21)).toBe('день');
     expect(pluralDays(22)).toBe('дня');

@@ -19,7 +19,13 @@ export interface FinanceStore {
   confirmIncome: (occurrenceKey: string, amount: Kopecks) => void;
   addReceivedOneOff: (name: string, amount: Kopecks) => void;
   closeDay: (date: ISODate) => void;
+  /** Применить чистое действие из core (профиль, настройки и т. п.). */
+  update: (action: (d: FinanceData) => FinanceData) => void;
+  /** Заменить все данные (сброс к демо, свои данные, восстановление из файла). */
+  replace: (data: FinanceData) => void;
 }
+
+export { newId };
 
 export function useFinance(): FinanceStore {
   const today = todayLocal();
@@ -27,9 +33,12 @@ export function useFinance(): FinanceStore {
   const limit = useMemo(() => computeLimit(data, today), [data, today]);
 
   // Откладывание и лимит «на счёт» фиксируются на период: сохраняем, когда ядро их создало заново.
+  // Сравниваем по содержимому: в день расчёта ядро каждый раз отдаёт новый объект.
   useEffect(() => {
     if (limit.status !== 'ok') return;
-    if (data.savePlan !== limit.savePlan || (limit.fixedLimit && data.fixedLimit?.limit !== limit.fixedLimit.limit)) {
+    const planChanged = JSON.stringify(data.savePlan) !== JSON.stringify(limit.savePlan);
+    const fixedChanged = limit.fixedLimit && data.fixedLimit?.limit !== limit.fixedLimit.limit;
+    if (planChanged || fixedChanged) {
       setData((d) => ({ ...d, savePlan: limit.savePlan, fixedLimit: limit.fixedLimit ?? d.fixedLimit }));
     }
   }, [limit, data.savePlan, data.fixedLimit]);
@@ -44,5 +53,7 @@ export function useFinance(): FinanceStore {
     addReceivedOneOff: (name, amount) =>
       setData((d) => actions.addReceivedOneOff(d, name, amount, today, newId(), Date.now())),
     closeDay: (date) => setData((d) => actions.closeDayAction(d, date)),
+    update: (action) => setData(action),
+    replace: (next) => setData(next),
   };
 }
