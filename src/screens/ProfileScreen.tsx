@@ -29,7 +29,7 @@ type Open =
 
 function scheduleText(i: RegularIncome): string {
   const s = i.schedule;
-  if (s.type === 'window') return `с ${s.fromDay} по ${s.toDay} число`;
+  if (s.type === 'window') return `${s.fromDay}–${s.toDay} числа`;
   return `${s.days.join(' и ')} числа`;
 }
 

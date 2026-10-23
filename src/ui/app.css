@@ -1,4 +1,4 @@
-.app {
+﻿.app {
   max-width: 480px;
   margin: 0 auto;
   min-height: 100dvh;
@@ -9,7 +9,7 @@
   padding: max(16px, env(safe-area-inset-top)) 16px calc(var(--nav-height) + var(--nav-gap) + env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: var(--space-block);
 }
 
 .screen-title {
@@ -99,6 +99,9 @@
   max-width: 480px;
   display: grid;
   grid-template-columns: repeat(4, 1fr);
+  /* постоянная высота при любой ширине (подписи в одну или две строки) — от неё считаются отступы */
+  height: calc(var(--nav-height) + env(safe-area-inset-bottom));
+  align-items: start;
   padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
   background: var(--glass-sheen), rgb(255 255 255 / 0.6);
   -webkit-backdrop-filter: var(--glass-blur);
@@ -228,11 +231,12 @@
 }
 
 /* Главная */
+/* Единый шаг между блоками главной (SPEC 3.24): 12 px на низких экранах, до 16 px на высоких */
 .home {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: var(--space-block);
 }
 
 .notice {
@@ -246,11 +250,25 @@
 /*
  * Сцена с Флюми (референс IMG_2987): фон комнаты во всю ширину, Флюми слева от центра,
  * ноги чуть выходят за нижний край, мысли рукописным текстом справа (референс IMG_2979).
- * Авто-отступы забирают свободное место: блок ниже прижат к навигации.
+ *
+ * Высота гибкая (SPEC 3.24): сцена занимает свободное место между карточками и кнопками —
+ * от исходной пропорции фона 2,16 : 1 до 1,3 : 1. Когда сцена выше исходной, фон обрезается
+ * поровну слева и справа (не больше ~20 % с каждой стороны — только на высоких экранах). Флюми и текст расставлены
+ * в долях размеров сцены (--sw — ширина, --sh — высота; их измеряет HomeScreen), поэтому
+ * держатся своих мест на фоне при любой обрезке: центр фона всегда в 0,5·sw, а вся ширина
+ * фона = 2,16·sh. Если места больше, лишнее делится поровну сверху и снизу (авто-отступы).
  */
 .scene {
+  --scene-w: calc(min(100vw, 480px) - 32px);
+  /* до первого замера — исходная пропорция фона */
+  --sw: var(--scene-w);
+  --sh: calc(var(--scene-w) / 2.16);
+  /* Флюми — на полу слева от центра фона, но не ближе 5 % к краю сцены */
+  --robot-left: max(calc(var(--sw) * 0.05), calc(var(--sw) * 0.5 - var(--sh) * 0.7));
   position: relative;
-  aspect-ratio: 1100 / 509;
+  flex: 1 1 auto;
+  min-height: calc(var(--scene-w) / 2.16);
+  max-height: calc(var(--scene-w) / 1.3);
   margin: auto 0;
 }
 
@@ -271,18 +289,19 @@
 
 .scene-thought {
   position: absolute;
-  /* свободная стена между Флюми и полкой справа */
-  left: 50%;
-  right: 21%;
-  top: 14%;
-  bottom: 20%;
+  /* свободная стена: от правого края Флюми до полки с книгами (≈ 77 % ширины фона) */
+  /* от правого края Флюми (его ширина ≈ 0,6·sh) с небольшим зазором */
+  left: calc(var(--robot-left) + var(--sh) * 0.6 + 6px);
+  right: calc(var(--sw) * 0.5 - var(--sh) * 0.58);
+  top: calc(var(--sh) * 0.12);
+  bottom: calc(var(--sh) * 0.18);
   display: flex;
   flex-direction: column;
   justify-content: center;
   color: var(--thought-ink);
   font-family: 'Caveat', cursive;
   font-weight: 500;
-  font-size: clamp(16px, 4.6vw, 22px);
+  font-size: clamp(14px, min(var(--sw) * 0.05, var(--sh) * 0.105), 22px);
   line-height: 1.05;
   text-shadow: 0 1px 0 rgb(255 255 255 / 0.35);
 }
@@ -302,11 +321,12 @@
   stroke-linejoin: round;
 }
 
+/* Флюми стоит на полу комнаты: правый край у центра фона, ноги чуть ниже края сцены */
 .robot-wrap.scene-robot {
   position: absolute;
-  left: 18%;
-  bottom: -5%;
-  height: 92%;
+  left: var(--robot-left);
+  bottom: calc(var(--sh) * -0.04);
+  height: calc(var(--sh) * 0.9);
 }
 
 .robot-img {
@@ -368,6 +388,11 @@
   justify-content: center;
   min-height: 40px;
   align-items: center;
+}
+
+/* под сценой место для ног Флюми, выходящих за край */
+.scene + .day-row {
+  margin-top: 4px;
 }
 
 .day-closed {
@@ -892,6 +917,73 @@
   font-weight: 700;
 }
 
+/*
+ * Узкие и низкие экраны (SPEC 3.24): iPhone SE, маленькие Android (ширина до 360 px
+ * или высота до 680 px). Компактнее карточки, кнопки и подписи, чтобы главная
+ * помещалась без прокрутки и текст не переносился.
+ */
+@media (max-width: 360px) {
+  .demo-badge {
+    font-size: 11.5px;
+    white-space: nowrap;
+    padding: 5px 10px;
+  }
+
+  .top-cards {
+    gap: 10px;
+  }
+
+  .stat {
+    padding: 12px;
+    gap: 4px;
+  }
+
+  .stat-head {
+    font-size: 12.5px;
+    white-space: nowrap;
+  }
+
+  .stat-value {
+    font-size: 23px;
+    white-space: nowrap;
+  }
+
+  .stat-unit {
+    font-size: 13px;
+  }
+
+  .stat-note {
+    font-size: 11.5px;
+  }
+
+  .btn-big {
+    font-size: 14px;
+  }
+
+  .segmented button {
+    font-size: 12.5px;
+  }
+
+  .screen-title {
+    font-size: 23px;
+  }
+}
+
+@media (max-height: 680px) {
+  .btn-big {
+    min-height: 52px;
+  }
+
+  .chat-strip,
+  .chat-form {
+    min-height: 50px;
+  }
+
+  .day-row {
+    min-height: 32px;
+  }
+}
+
 /* Финансы и цели */
 .big-card {
   display: flex;
@@ -1190,8 +1282,10 @@
 }
 
 .row-value {
+  max-width: 50%;
   font-weight: 700;
   font-size: 14.5px;
+  line-height: 1.25;
   text-align: right;
 }
 

@@ -47,6 +47,21 @@ export function HomeScreen({
   const [robotShift, setRobotShift] = useState<string | undefined>();
   const [dismissed, setDismissed] = useState<string[]>([]);
   const robotRef = useRef<HTMLDivElement>(null);
+  const sceneRef = useRef<HTMLDivElement>(null);
+
+  // Размер сцены гибкий; Флюми и мысли расставляются в долях её ширины и высоты (--sw, --sh).
+  useLayoutEffect(() => {
+    const el = sceneRef.current;
+    if (!el) return;
+    const apply = () => {
+      el.style.setProperty('--sw', `${el.clientWidth}px`);
+      el.style.setProperty('--sh', `${el.clientHeight}px`);
+    };
+    apply();
+    const ro = new ResizeObserver(apply);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
   const chatRef = useRef<HTMLDivElement>(null);
   const dockRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -213,7 +228,7 @@ export function HomeScreen({
       )}
 
       {/* Сцена: фон комнаты, Флюми на нём (как на референсе IMG_2987), мысли рукописным текстом справа. */}
-      <div className="scene">
+      <div ref={sceneRef} className="scene">
         <div className="scene-bg fly" style={fly(2)}>
           <img src={characterBackground} alt="" draggable={false} />
           <div className="scene-thought" aria-live="polite">

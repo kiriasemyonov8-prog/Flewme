@@ -65,6 +65,8 @@
   --font: 'Manrope Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
   /* реальная высота нижнего меню (подписи в две строки) */
   --nav-height: 80px;
-  /* отступ от нижнего меню до поля чата и последних элементов экрана (SPEC 3.22) */
-  --nav-gap: 10px;
+  /* Сетка отступов (SPEC 3.24): шаг между блоками экрана — 12 px, на высоких экранах до 20 px;
+     тот же шаг от поля чата до нижнего меню */
+  --space-block: clamp(12px, 2.1vh, 20px);
+  --nav-gap: var(--space-block);
 }
