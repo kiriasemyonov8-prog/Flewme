@@ -27,8 +27,8 @@ function ok(d: FinanceData): FinanceData {
 }
 
 describe('свои данные с чистого листа', () => {
-  it('без остатка и дохода лимит не выдаётся', () => {
-    expect(computeLimit(emptyData(T), T)).toEqual({ status: 'noData', missing: ['mainBalance', 'income'] });
+  it('без остатка лимит не выдаётся; без дохода деньги тянутся на 30 дней (3.26)', () => {
+    expect(computeLimit(emptyData(T), T)).toEqual({ status: 'noData', missing: ['mainBalance'] });
   });
 
   it('после ввода счёта, зарплаты и платежей лимит считается как в демо', () => {

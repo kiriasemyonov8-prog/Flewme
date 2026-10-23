@@ -2,10 +2,11 @@
 // Чистые функции «данные → новые данные», без интерфейса.
 import { CATEGORY_COLORS, DEFAULT_CATEGORIES, FOOD_ID, MAX_CATEGORIES, OTHER_ID } from './categories';
 import { currentBalance } from './balance';
+import { CONFIG } from './config';
 import type { ISODate, ISOMonth } from './dates';
 import type { Kopecks } from './money';
 import { rub, sub, sum } from './money';
-import { paymentOccurrences } from './schedule';
+import { dataPayments } from './schedule';
 import type {
   Account,
   AccountKind,
@@ -14,6 +15,7 @@ import type {
   LeftoverMode,
   OneOffIncome,
   RegularIncome,
+  WeeklyRepeat,
 } from './types';
 
 export const DEFAULT_SETTINGS = {
@@ -53,6 +55,28 @@ const ACCOUNT_NAMES: Record<Exclude<AccountKind, 'other'>, string> = {
 };
 
 /**
+ * На сколько новый остаток основного счёта меньше, чем ждал Флюми по записям. null — не меньше.
+ * notice — расхождение заметное (3.26, п. 13): стоит предложить разнести неучтённые траты.
+ */
+export function balanceGap(
+  data: FinanceData,
+  accountId: string,
+  amount: Kopecks,
+  asOf: ISODate,
+  paidOnAsOf: string[] = [],
+): { gap: Kopecks; notice: boolean } | null {
+  const account = data.accounts.find((a) => a.id === accountId);
+  if (account?.kind !== 'main' || asOf < account.asOf) return null;
+  const alreadyPaid = new Set(account.asOf === asOf ? (account.paidOnAsOf ?? []) : []);
+  const paidNow = dataPayments(data, asOf, asOf).filter((p) => paidOnAsOf.includes(p.key) && !alreadyPaid.has(p.key));
+  const expected = sub(currentBalance(account, data, asOf), sum(paidNow.map((p) => p.amount)));
+  if (amount >= expected) return null;
+  const gap = sub(expected, amount);
+  const notice = gap > CONFIG.gapNoticeMin || gap * 100 > Math.abs(expected) * CONFIG.gapNoticePercent;
+  return { gap, notice };
+}
+
+/**
  * Записать остаток счёта на дату. Момент записи нужен, чтобы понять, какие траты дня
  * уже вошли в сумму. paidOnAsOf — платежи этого дня, которые уже списаны.
  */
@@ -66,16 +90,8 @@ export function setAccountBalance(
 ): FinanceData {
   // Денег меньше, чем думал Флюми, — запоминаем расхождение: оно сначала уменьшает
   // «сэкономлено», чтобы потраченное не предлагалось перевести в накопления (3.25).
-  const account = data.accounts.find((a) => a.id === accountId);
-  let balanceGaps = data.balanceGaps;
-  if (account?.kind === 'main' && asOf >= account.asOf) {
-    const alreadyPaid = new Set(account.asOf === asOf ? (account.paidOnAsOf ?? []) : []);
-    const paidNow = paymentOccurrences(data.payments, asOf, asOf).filter(
-      (p) => paidOnAsOf.includes(p.key) && !alreadyPaid.has(p.key),
-    );
-    const expected = sub(currentBalance(account, data, asOf), sum(paidNow.map((p) => p.amount)));
-    if (amount < expected) balanceGaps = [...(balanceGaps ?? []), { date: asOf, amount: sub(expected, amount) }];
-  }
+  const gap = balanceGap(data, accountId, amount, asOf, paidOnAsOf);
+  const balanceGaps = gap ? [...(data.balanceGaps ?? []), { date: asOf, amount: gap.gap }] : data.balanceGaps;
   return {
     ...data,
     ...(balanceGaps ? { balanceGaps } : {}),
@@ -161,8 +177,15 @@ export function addPayment(
   day: number,
   amount: Kopecks,
   fromMonth: ISOMonth,
+  repeat?: WeeklyRepeat,
 ): FinanceData {
-  const payment: FixedPayment = { id, name: name.trim() || 'Платёж', day, amounts: [{ fromMonth, amount }] };
+  const payment: FixedPayment = {
+    id,
+    name: name.trim() || 'Платёж',
+    day,
+    amounts: [{ fromMonth, amount }],
+    ...(repeat ? { repeat } : {}),
+  };
   return { ...data, payments: [...data.payments, payment] };
 }
 
@@ -183,10 +206,20 @@ export function changePaymentAmount(
   };
 }
 
-export function updatePaymentInfo(data: FinanceData, id: string, name: string, day: number): FinanceData {
+export function updatePaymentInfo(
+  data: FinanceData,
+  id: string,
+  name: string,
+  day: number,
+  repeat?: WeeklyRepeat,
+): FinanceData {
   return {
     ...data,
-    payments: data.payments.map((p) => (p.id === id ? { ...p, name: name.trim() || p.name, day } : p)),
+    payments: data.payments.map((p) => {
+      if (p.id !== id) return p;
+      const { repeat: _old, ...rest } = p;
+      return { ...rest, name: name.trim() || p.name, day, ...(repeat ? { repeat } : {}) };
+    }),
   };
 }
 

@@ -12,6 +12,11 @@ import {
   incomesToConfirm,
   matchingOneOff,
   mayBeInBalance,
+  confirmPaymentPaid,
+  paymentQuestion,
+  recentDuplicate,
+  setAsideReminderDue,
+  transferSetAside,
 } from '../src/core/actions';
 import { currentBalance, spentTodayMain } from '../src/core/balance';
 import { addDays, diffDays, type ISODate } from '../src/core/dates';
@@ -19,7 +24,7 @@ import { closedStreak, isBalanceStale, unclosedDays } from '../src/core/days';
 import { computeLimit, remainingToday, type LimitResult } from '../src/core/limit';
 import { kop, rub, type Kopecks } from '../src/core/money';
 import { robotMood } from '../src/core/mood';
-import { paymentOccurrences } from '../src/core/schedule';
+import { dataPayments } from '../src/core/schedule';
 import { setAccountBalance } from '../src/core/profile';
 import type { FinanceData } from '../src/core/types';
 
@@ -76,6 +81,8 @@ export interface Habits {
   lateRecord?: number;
   /** Иногда записывает одну и ту же трату дважды (например, вдвоём с одного аккаунта). */
   duplicate?: number;
+  /** По напоминанию переводит отложенное в накопления (3.26, п. 21); иначе жмёт «Позже». */
+  transfersSetAside?: boolean;
 }
 
 export interface Ctx {
@@ -195,7 +202,7 @@ export function simulate(p: Persona, d0: ISODate, days: number) {
        * и есть в этой сумме?» (3.25) — человек честно отмечает пришедшие деньги.
        */
       const updateBalance = (note: string) => {
-        const paidToday = paymentOccurrences(data.payments, date, date).map((x) => x.key);
+        const paidToday = dataPayments(data, date, date).map((x) => x.key);
         data = setAccountBalance(data, 'main', trueMain, date, ts(day, 8), p.habits.marksPaid ? paidToday : []);
         lastBalanceUpdate = day;
         balanceDay = date;
@@ -248,6 +255,21 @@ export function simulate(p: Persona, d0: ISODate, days: number) {
         data = delayIncome(data, prompt.income.key, addDays(date, 7));
         notes.push(`«${prompt.income.name}» не пришёл — отметил «Задерживается» до ${addDays(date, 7).slice(5)}`);
       }
+      // «Платёж прошёл?» — в жизни банк списывает его всегда, даже в минус (3.26, п. 20).
+      for (let q = paymentQuestion(data, date); q; q = paymentQuestion(data, date)) {
+        data = confirmPaymentPaid(data, q.key);
+        notes.push(`ответил «${q.name} прошёл»`);
+      }
+      // «Отложено N ₽. Перевели?» — кто привык переводить, переводит (3.26, п. 21).
+      const before = computeLimit(data, date);
+      if (before.status === 'ok' && setAsideReminderDue(data, before, date)) {
+        if (p.habits.transfersSetAside) {
+          const moved = before.setAside;
+          data = transferSetAside(data, before, date, ts(day, 8) + 2, () => `sa${seq++}`);
+          trueMain = kop(trueMain - moved);
+          notes.push(`по напоминанию перевёл отложенное ${R(moved)} ₽`);
+        }
+      }
       // Записывает вчерашние забытые траты
       for (const e of lateExpenses.splice(0)) {
         data = addExpense(data, { amount: e.amount, accountId: 'main', categoryId: e.cat, date: e.date }, `le${seq}`, ts(day, 8));
@@ -286,10 +308,17 @@ export function simulate(p: Persona, d0: ISODate, days: number) {
         if (p.habits.lateRecord && r.chance(p.habits.lateRecord) && account === 'main') {
           lateExpenses.push({ date, amount, cat: s.cat });
         } else {
-          data = addExpense(data, { amount, accountId: account, categoryId: s.cat, date }, `e${seq}`, ts(day, 13));
+          const at = ts(day, 13);
+          data = addExpense(data, { amount, accountId: account, categoryId: s.cat, date }, `e${seq}`, at);
           if (p.habits.duplicate && r.chance(p.habits.duplicate)) {
-            data = addExpense(data, { amount, accountId: account, categoryId: s.cat, date }, `dup${seq}`, ts(day, 14));
-            notes.push(`трата ${s.rubles} записана дважды`);
+            // Второй человек записывает ту же трату через несколько минут. Флюми переспрашивает (3.26, п. 19),
+            // и это та же покупка — «Не надо».
+            const e = { amount, accountId: account, categoryId: s.cat, date };
+            if (recentDuplicate(data, e, at + 5 * 60_000)) notes.push(`Флюми переспросил про трату ${s.rubles} — дубль не записан`);
+            else {
+              data = addExpense(data, e, `dup${seq}`, at + 5 * 60_000);
+              notes.push(`трата ${s.rubles} записана дважды`);
+            }
           }
         }
       }
@@ -301,7 +330,7 @@ export function simulate(p: Persona, d0: ISODate, days: number) {
     const spentRec = spentTodayMain(data, date);
     let mood = '—';
     if (evening.status === 'ok') {
-      mood = robotMood(spentRec, evening.dailyLimit);
+      mood = robotMood(spentRec, evening.dailyLimit, evening.noFreeMoney);
       if (morning?.status === 'ok' && morning.dailyLimit !== evening.dailyLimit && !notes.some((n) => n.startsWith('событие'))) {
         notes.push(`лимит за день сменился ${R(morning.dailyLimit)}→${R(evening.dailyLimit)}`);
       }
@@ -332,7 +361,14 @@ export function simulate(p: Persona, d0: ISODate, days: number) {
       if (prevLimit !== null && prevLimit > 0 && Math.abs(L - prevLimit) / prevLimit > 0.4) {
         flag(day, date, 'Скачок лимита', `${prevLimit.toLocaleString('ru')} → ${L.toLocaleString('ru')} ₽ в день (${notes.join('; ') || 'без явных событий'})`);
       }
-      if (prevHorizon && prevHorizon !== evening.horizon && evening.horizon > prevHorizon && !notes.some((n) => n.includes('Пришла'))) {
+      // Без регулярного дохода горизонт скользит каждый день («Дотянуть до», 3.26) — это не ошибка.
+      if (
+        evening.horizonIncome.key !== 'stretch' &&
+        prevHorizon &&
+        prevHorizon !== evening.horizon &&
+        evening.horizon > prevHorizon &&
+        !notes.some((n) => n.includes('Пришла'))
+      ) {
         flag(day, date, 'Горизонт уехал без дохода', `ожидавшийся доход ${prevHorizon} не подтверждён — лимит теперь считается до ${evening.horizon}`);
       }
       // Лимит обещает больше, чем реально есть с учётом ближайших платежей

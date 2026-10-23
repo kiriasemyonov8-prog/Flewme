@@ -9,7 +9,8 @@ import { goalProgressPermille } from './goal';
 import { goalBalance, monthlyForGoal, takeFromSavings } from './goals';
 import type { LimitOk } from './limit';
 import { ZERO, divFloor, max, min, mulInt, percentOf, sub, sum, type Kopecks } from './money';
-import { paymentOccurrences } from './schedule';
+import { normalMonthlySaving } from './month';
+import { dataPayments } from './schedule';
 import type { FinanceData, Goal } from './types';
 
 export type PurchaseSource =
@@ -83,8 +84,12 @@ export interface GoalImpact {
   delayDays: number | null;
 }
 
-/** Что будет с целями, если взять из накоплений эту сумму (сначала с последних по очереди). */
-export function savingsImpact(data: FinanceData, limit: LimitOk, amount: Kopecks, today: ISODate): GoalImpact[] {
+/**
+ * Что будет с целями, если взять из накоплений эту сумму (сначала с последних по очереди).
+ * Сдвиг цели считается по обычному месяцу откладывания (3.26, п. 15).
+ */
+export function savingsImpact(data: FinanceData, amount: Kopecks, today: ISODate): GoalImpact[] {
+  const monthly = normalMonthlySaving(data, today);
   return takeFromSavings(data, amount, today)
     .filter((t) => t.goal)
     .map((t) => {
@@ -94,14 +99,18 @@ export function savingsImpact(data: FinanceData, limit: LimitOk, amount: Kopecks
         goal,
         from: goalProgressPermille(balance, goal.target),
         to: goalProgressPermille(sub(balance, t.take), goal.target),
-        delayDays: daysToSave(t.take, monthlyForGoal(data, limit.savePlan.amount, goal, today)),
+        delayDays: daysToSave(t.take, monthlyForGoal(data, monthly, goal, today)),
       };
     });
 }
 
-/** Сколько можно накопить за месяц выбранным способом. */
-export function savingCapacity(limit: LimitOk, method: SavingMethod): Kopecks {
-  if (method === 'setAside') return limit.savePlan.amount;
+/**
+ * Сколько можно накопить за месяц выбранным способом. «Из отложенного» — по обычному месяцу
+ * (3.26, п. 15), а не по текущему периоду: в «бедный» период срок получался бы нереальным.
+ */
+export function savingCapacity(data: FinanceData, limit: LimitOk | null, method: SavingMethod, today: ISODate): Kopecks {
+  if (method === 'setAside') return normalMonthlySaving(data, today);
+  if (!limit) return ZERO;
   return mulInt(percentOf(limit.dailyLimit, CONFIG.purchase.cutLimitPercent), CONFIG.purchase.monthDays);
 }
 
@@ -114,20 +123,21 @@ function takeInOrder(price: Kopecks, buckets: Kopecks[]): Kopecks[] {
   });
 }
 
+/** limit = null — лимита нет (нет основного счёта): считаются только накопления и другие счета (3.26, п. 18). */
 export function evaluatePurchase(
   data: FinanceData,
-  limit: LimitOk,
+  limit: LimitOk | null,
   price: Kopecks,
   source: PurchaseSource,
   today: ISODate,
   method: SavingMethod = 'setAside',
 ): PurchaseResult {
   const cfg = CONFIG.purchase;
-  const free = max(ZERO, limit.free);
+  const free = limit ? max(ZERO, limit.free) : ZERO;
   const savings = savingsTotal(data, today);
   const others = otherAccountsTotal(data, today);
   // Скорость накопления недостающего на покупку — выбранным способом.
-  const capacity = savingCapacity(limit, method);
+  const capacity = savingCapacity(data, limit, method, today);
 
   let available: Kopecks;
   let buckets: { free: Kopecks; other: Kopecks; savings: Kopecks };
@@ -158,10 +168,10 @@ export function evaluatePurchase(
   const sharePercent = available > 0 ? Math.floor((price * 100) / available) : null;
 
   const limitAfter =
-    takeFree > 0
+    limit && takeFree > 0
       ? { from: limit.dailyLimit, to: divFloor(max(ZERO, sub(limit.free, takeFree)), limit.days) }
       : undefined;
-  const impacts = takeSavings > 0 ? savingsImpact(data, limit, takeSavings, today) : [];
+  const impacts = takeSavings > 0 ? savingsImpact(data, takeSavings, today) : [];
   const goalAfter = impacts[0];
 
   let verdict: Verdict;
@@ -202,9 +212,9 @@ export function evaluatePurchase(
   const recommendations: Recommendation[] = [];
 
   // 1. Дождаться дохода: оценка свободных денег следующего периода по нижней границе дохода.
-  if (source.kind === 'main' && verdict !== 'yes') {
+  if (limit && source.kind === 'main' && verdict !== 'yes' && limit.horizonIncome.min > 0) {
     const nextPayments = sum(
-      paymentOccurrences(data.payments, addDays(limit.horizon, 1), addDays(limit.horizon, cfg.monthDays)).map(
+      dataPayments(data, addDays(limit.horizon, 1), addDays(limit.horizon, cfg.monthDays)).map(
         (p) => p.amount,
       ),
     );
@@ -230,7 +240,7 @@ export function evaluatePurchase(
     recommendations.push({
       type: 'fromSavings',
       amount: shortfall,
-      impact: savingsImpact(data, limit, shortfall, today)[0],
+      impact: savingsImpact(data, shortfall, today)[0],
     });
   }
 
@@ -255,21 +265,27 @@ export function evaluatePurchase(
   };
 }
 
-/** «Взять из накоплений» со счёта цели: что будет с лимитом и с этой целью (SPEC, раздел 7). */
+/**
+ * «Взять из накоплений» с накопительного счёта (с целью или без, 3.26, п. 17):
+ * что будет с лимитом и с целью этого счёта (SPEC, раздел 7).
+ */
 export function previewWithdrawal(
   data: FinanceData,
   limit: LimitOk,
-  goal: Goal,
+  accountId: string,
   amount: Kopecks,
   today: ISODate,
-): { limitFrom: Kopecks; limitTo: Kopecks; goalDelayDays: number | null; progressFrom: number; progressTo: number } {
-  const balance = goalBalance(data, goal, today);
+): { limitFrom: Kopecks; limitTo: Kopecks; goalDelayDays: number | null; progressFrom: number; progressTo: number } | null {
+  const acc = data.accounts.find((a) => a.id === accountId);
+  if (!acc) return null;
+  const goal: Goal | undefined = data.goals.find((g) => g.accountId === accountId);
+  const balance = max(ZERO, currentBalance(acc, data, today));
   const take = min(amount, balance);
   return {
     limitFrom: limit.dailyLimit,
     limitTo: divFloor(max(ZERO, sum([limit.free, take])), limit.days),
-    goalDelayDays: daysToSave(take, monthlyForGoal(data, limit.savePlan.amount, goal, today)),
-    progressFrom: goalProgressPermille(balance, goal.target),
-    progressTo: goalProgressPermille(sub(balance, take), goal.target),
+    goalDelayDays: goal ? daysToSave(take, monthlyForGoal(data, normalMonthlySaving(data, today), goal, today)) : null,
+    progressFrom: goal ? goalProgressPermille(balance, goal.target) : 0,
+    progressTo: goal ? goalProgressPermille(sub(balance, take), goal.target) : 0,
   };
 }

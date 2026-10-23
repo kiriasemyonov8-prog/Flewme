@@ -1,9 +1,9 @@
 import { Plus } from 'lucide-react';
 import { useState } from 'react';
-import type { ExpenseInput } from '../../core/actions';
+import { recentDuplicate, type ExpenseInput } from '../../core/actions';
 import { MAX_CATEGORIES } from '../../core/categories';
 import type { ISODate } from '../../core/dates';
-import { formatDayMonth, parseRubInput } from '../../core/format';
+import { formatDayMonth, formatRub, parseRubInput } from '../../core/format';
 import type { FinanceData } from '../../core/types';
 import { newId } from '../../state/useFinance';
 import { DateField } from '../../ui/Calendar';
@@ -34,12 +34,38 @@ export function ExpenseSheet({
   const [error, setError] = useState<string | null>(null);
   const [newCategory, setNewCategory] = useState<string | null>(null);
   const [categoryError, setCategoryError] = useState<string | null>(null);
+  const [duplicate, setDuplicate] = useState<{ e: ExpenseInput; at: number } | null>(null);
 
   function save() {
     const amount = parseRubInput(text);
     if (!accountId) return setError('Сначала укажите основной счёт в профиле');
     if (!amount) return setError('Введите сумму');
-    onSave({ amount, accountId, categoryId, date });
+    const e = { amount, accountId, categoryId, date };
+    // Та же трата только что записана — переспросим (3.26, п. 19).
+    const dup = recentDuplicate(data, e, Date.now());
+    if (dup) return setDuplicate({ e, at: dup.createdAt });
+    onSave(e);
+  }
+
+  if (duplicate) {
+    const at = new Date(duplicate.at);
+    const time = `${String(at.getHours()).padStart(2, '0')}:${String(at.getMinutes()).padStart(2, '0')}`;
+    return (
+      <Sheet title="Такая трата уже есть" onClose={onClose}>
+        <p className="close-question">
+          {formatRub(duplicate.e.amount)} в «{data.categories.find((c) => c.id === duplicate.e.categoryId)?.name ?? 'Другое'}» уже
+          записана в {time}. Записать ещё одну?
+        </p>
+        <div className="btn-row">
+          <button type="button" className="btn btn-secondary" onClick={onClose}>
+            Не надо
+          </button>
+          <button type="button" className="btn btn-primary" onClick={() => onSave(duplicate.e)}>
+            Записать ещё
+          </button>
+        </div>
+      </Sheet>
+    );
   }
 
   function addCategory() {

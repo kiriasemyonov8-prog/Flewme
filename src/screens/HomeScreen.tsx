@@ -1,7 +1,20 @@
 import { CalendarDays, MessageCircle, Wallet } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { characterBackground, Robot } from '../assets/character';
-import { delayIncome, dropOneOff, incomePrompt } from '../core/actions';
+import {
+  confirmPaymentPaid,
+  delayIncome,
+  delayPayment,
+  dropOneOff,
+  incomePrompt,
+  paymentQuestion,
+  setAsideReminderDue,
+  transferSetAside,
+} from '../core/actions';
+import { STRETCH_KEY } from '../core/limit';
+import type { Kopecks } from '../core/money';
+import { monthlyDeficit } from '../core/month';
+import { newId } from '../state/useFinance';
 import { spentTodayMain, transportOverMonth } from '../core/balance';
 import { addDays, diffDays, type ISODate } from '../core/dates';
 import type { IncomeOccurrence } from '../core/schedule';
@@ -26,6 +39,7 @@ type SheetState =
   | { kind: 'expense'; date: ISODate; thenClose?: boolean }
   | { kind: 'income'; initial?: IncomeOccurrence }
   | { kind: 'delay'; income: IncomeOccurrence }
+  | { kind: 'delayPayment'; key: string; name: string }
   | { kind: 'close'; date: ISODate };
 
 /** Мягкое напоминание на главной: одно за раз, «Позже» скрывает его до следующего открытия. */
@@ -154,7 +168,46 @@ export function HomeScreen({
               : [{ label: 'Задерживается', run: () => setSheet({ kind: 'delay', income: prompt.income }) }],
       }
     : null;
-  const reminder: Reminder | null = incomeReminder ?? (
+  // Платёж, на который по записям не хватало денег: прошёл ли он (3.26, п. 20).
+  const payQ = paymentQuestion(data, today);
+  const paymentReminder: Reminder | null = payQ
+    ? {
+        key: `pay-${payQ.key}`,
+        text: `«${payQ.name}» ${formatRubWhole(payQ.amount)} — ${formatDayMonth(payQ.date)}. По записям денег на него не хватало. Платёж прошёл?`,
+        action: 'Да, прошёл',
+        run: () => store.update((d) => confirmPaymentPaid(d, payQ.key)),
+        more: [{ label: 'Нет', run: () => setSheet({ kind: 'delayPayment', key: payQ.key, name: payQ.name }) }],
+      }
+    : null;
+  // Денег не хватает (3.26, п. 11): честно назвать нехватку и предложить, что можно сделать.
+  const deficit = limit.status === 'ok' && limit.noFreeMoney ? monthlyDeficit(data, today) : null;
+  const shortageReminder: Reminder | null =
+    limit.status === 'ok' && limit.noFreeMoney
+      ? {
+          key: `shortage-${today}`,
+          text:
+            (limit.base < 0
+              ? `До ${formatDayMonth(limit.horizon)} не хватает ${formatRubWhole((-limit.base) as Kopecks)}.`
+              : `До ${formatDayMonth(limit.horizon)} свободных денег нет.`) +
+            (deficit && deficit > 0 ? ` В месяц расходы больше доходов примерно на ${formatRubWhole(deficit)}.` : ''),
+          action: 'Что можно сделать',
+          run: () => {
+            setChat(true);
+            chatStore.send('Что можно сделать, если денег не хватает?');
+          },
+        }
+      : null;
+  // Отложенное несколько дней не переведено (3.26, п. 21).
+  const setAsideReminder: Reminder | null =
+    limit.status === 'ok' && setAsideReminderDue(data, limit, today)
+      ? {
+          key: `setaside-${limit.savePlan.periodKey}-${today}`,
+          text: `Отложено ${formatRubWhole(limit.setAside)}. Перевели в накопления?`,
+          action: 'Перевёл(а)',
+          run: () => store.update((d) => transferSetAside(d, limit, today, Date.now(), newId)),
+        }
+      : null;
+  const reminder: Reminder | null = incomeReminder ?? paymentReminder ?? shortageReminder ?? (
     missed.length > 0
       ? {
           key: `missed-${missed[0]}`,
@@ -172,23 +225,24 @@ export function HomeScreen({
             action: 'Обновить',
             run: onOpenProfile,
           }
-        : eveningDue
-          ? {
-              key: `evening-${today}`,
-              text: 'Как прошёл день? Запишем траты и закроем его — это займёт минуту.',
-              action: 'Закрыть день',
-              run: () => setSheet({ kind: 'close', date: today }),
-            }
-          : null);
+        : setAsideReminder ??
+          (eveningDue
+            ? {
+                key: `evening-${today}`,
+                text: 'Как прошёл день? Запишем траты и закроем его — это займёт минуту.',
+                action: 'Закрыть день',
+                run: () => setSheet({ kind: 'close', date: today }),
+              }
+            : null));
   const showReminder = reminder && !dismissed.includes(reminder.key);
 
-  let mood = robotMood(spent, limit.status === 'ok' ? limit.dailyLimit : spent);
+  let mood = robotMood(spent, limit.status === 'ok' ? limit.dailyLimit : spent, limit.status === 'ok' && limit.noFreeMoney);
   let phrase: string;
   if (limit.status !== 'ok') {
     mood = 'calm';
-    phrase = 'Для лимита нужны остаток счёта и ожидаемый доход.';
+    phrase = 'Для лимита нужен остаток основного счёта.';
   } else if (limit.noFreeMoney) {
-    phrase = 'По вашим данным свободных денег до дохода нет.';
+    phrase = 'Денег сейчас впритык. Разберёмся спокойно, без паники.';
   } else if (mood === 'calm') {
     phrase = `Трат пока нет. Можно до ${formatRubWhole(limit.dailyLimit)}.`;
   } else if (mood === 'joy') {
@@ -229,8 +283,7 @@ export function HomeScreen({
       {limit.status === 'noData' && (
         <div className="card notice fly" style={fly(1)}>
           <span>
-            Чтобы посчитать лимит, укажите{' '}
-            {limit.missing.map((m) => (m === 'mainBalance' ? 'остаток основного счёта' : 'ожидаемый доход')).join(' и ')}.
+            Чтобы посчитать лимит, укажите остаток основного счёта.
           </span>
           <button type="button" className="btn btn-primary" onClick={onOpenProfile}>
             Указать
@@ -243,7 +296,7 @@ export function HomeScreen({
           <section className="card stat">
             <div className="stat-head">
               <CalendarDays size={18} aria-hidden />
-              <span>До зарплаты</span>
+              <span>{limit.horizonIncome.key === STRETCH_KEY ? 'Дотянуть' : 'До зарплаты'}</span>
             </div>
             <div className="stat-value num">
               {limit.daysRange.min === limit.daysRange.max
@@ -374,11 +427,23 @@ export function HomeScreen({
       )}
       {sheet?.kind === 'delay' && (
         <DelaySheet
-          income={sheet.income}
+          name={sheet.income.name}
           today={today}
           onClose={() => setSheet(null)}
           onSave={(until) => {
             store.update((d) => delayIncome(d, sheet.income.key, until));
+            setSheet(null);
+          }}
+        />
+      )}
+      {sheet?.kind === 'delayPayment' && (
+        <DelaySheet
+          name={sheet.name}
+          today={today}
+          payment
+          onClose={() => setSheet(null)}
+          onSave={(until) => {
+            store.update((d) => delayPayment(d, sheet.key, until));
             setSheet(null);
           }}
         />

@@ -3,7 +3,7 @@ import { incomesToConfirm } from '../../core/actions';
 import type { ISODate } from '../../core/dates';
 import { formatRub, parseRubInput, toRubInput } from '../../core/format';
 import type { Kopecks } from '../../core/money';
-import { paymentOccurrences } from '../../core/schedule';
+import { dataPayments } from '../../core/schedule';
 import type { Account, AccountKind, FinanceData } from '../../core/types';
 import { DateField } from '../../ui/Calendar';
 import { AmountPad, TextField } from '../../ui/Form';
@@ -51,7 +51,7 @@ export function BalanceSheet({
   const [received, setReceived] = useState(false);
   const [incomeText, setIncomeText] = useState('');
   const [active, setActive] = useState(0);
-  const duePayments = kind === 'main' ? paymentOccurrences(data.payments, asOf, asOf) : [];
+  const duePayments = kind === 'main' ? dataPayments(data, asOf, asOf) : [];
   // Ожидаемый доход уже наступил и не подтверждён: возможно, он уже в этой сумме.
   const dueIncome = kind === 'main' && account ? (incomesToConfirm(data, asOf).find((o) => o.early <= asOf) ?? null) : null;
 

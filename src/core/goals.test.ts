@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { demoData } from './demo';
-import { allocateSetAside, goalsByPriority, takeFromSavings } from './goals';
+import { allocateSetAside, goalBehind, goalsByPriority, takeFromSavings } from './goals';
 import { computeLimit, type LimitOk } from './limit';
 import { createGoal } from './money-moves';
 import { rub } from './money';
@@ -27,15 +27,23 @@ describe('очередь целей', () => {
 });
 
 describe('распределение откладывания по целям', () => {
-  it('ближний срок получает нужное, потом следующая, остаток — цели без срока', () => {
+  it('ближний срок получает нужное, потом следующая; цели без срока — не меньше 20 % (3.26)', () => {
     const d = withGoals();
     const shares = allocateSetAside(d, rub(13_500), T);
-    // ноутбук: 9 000 за 2 мес. → 4 500; отпуск: 70 000 за 7 мес. → 10 000 → 9 000 (остаток); общая цель — 0
+    // 20 % = 2 700 — целям без срока; остальные 10 800: ноутбук 9 000 за 2 мес. → 4 500,
+    // отпуск 70 000 за 7 мес. → нужно 10 000, достаётся 6 300
     expect(shares.map((s) => [s.goal.id, s.amount])).toEqual([
       ['laptop', rub(4_500)],
-      ['trip', rub(9_000)],
-      ['goal', rub(0)],
+      ['trip', rub(6_300)],
+      ['goal', rub(2_700)],
     ]);
+  });
+
+  it('цель со сроком, которая не успевает, видна сразу', () => {
+    const d = withGoals();
+    const trip = d.goals.find((g) => g.id === 'trip')!;
+    expect(goalBehind(d, trip, rub(8_000), T)).toEqual({ need: rub(10_000), saving: rub(8_000) });
+    expect(goalBehind(d, trip, rub(12_000), T)).toBeNull();
   });
 
   it('если на все цели хватает, остаток уходит цели без срока', () => {

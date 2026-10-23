@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { addDays, type ISODate } from '../../core/dates';
 import { formatDayMonth, formatPermille, formatRub, formatRubWhole, parseRubInput, toRubInput } from '../../core/format';
-import { goalBalance } from '../../core/goals';
+import { currentBalance } from '../../core/balance';
 import type { LimitOk } from '../../core/limit';
-import type { Kopecks } from '../../core/money';
+import { ZERO, max, type Kopecks } from '../../core/money';
 import { previewWithdrawal } from '../../core/purchase';
-import type { FinanceData, Goal } from '../../core/types';
+import type { Account, FinanceData, Goal } from '../../core/types';
 import { DateField } from '../../ui/Calendar';
 import { AmountPad, TextField, Toggle } from '../../ui/Form';
 import { Sheet } from '../../ui/Sheet';
@@ -105,31 +105,35 @@ export function GoalSheet({
   );
 }
 
-/** «Взять из накоплений» со счёта цели: сразу видна цена — лимит и сдвиг цели (SPEC, раздел 7). */
+/**
+ * «Взять из накоплений» с накопительного счёта (с целью или без, 3.26): сразу видна цена —
+ * лимит и сдвиг цели (SPEC, раздел 7).
+ */
 export function WithdrawSheet({
   data,
   limit,
-  goal,
+  account,
   today,
   onConfirm,
   onClose,
 }: {
   data: FinanceData;
   limit: LimitOk;
-  goal: Goal;
+  account: Account;
   today: ISODate;
   onConfirm: (amount: Kopecks) => void;
   onClose: () => void;
 }) {
   const [text, setText] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const balance = goalBalance(data, goal, today);
+  const goal: Goal | undefined = data.goals.find((g) => g.accountId === account.id);
+  const balance = max(ZERO, currentBalance(account, data, today));
   const amount = parseRubInput(text);
-  const preview = amount ? previewWithdrawal(data, limit, goal, amount, today) : null;
+  const preview = amount ? previewWithdrawal(data, limit, account.id, amount, today) : null;
 
   return (
-    <Sheet title={`Взять из «${goal.name}»`} onClose={onClose}>
-      <p className="hint">На счёте цели {formatRub(balance)}.</p>
+    <Sheet title={`Взять из «${goal?.name ?? account.name}»`} onClose={onClose}>
+      <p className="hint">На счёте {formatRub(balance)}.</p>
       <AmountPad
         fields={[{ label: 'Сколько взять', text }]}
         active={0}
@@ -145,13 +149,15 @@ export function WithdrawSheet({
             Лимит вырастет с <b className="num">{formatRubWhole(preview.limitFrom)}</b> до{' '}
             <b className="num">{formatRubWhole(preview.limitTo)}</b> в день до {formatDayMonth(limit.horizon)}.
           </p>
-          <p>
-            Цель «{goal.name}»: {formatPermille(preview.progressFrom)} → {formatPermille(preview.progressTo)}
-            {preview.goalDelayDays !== null && preview.goalDelayDays > 0
-              ? `, отодвинется примерно на ${approxDuration(preview.goalDelayDays)}`
-              : ''}
-            .
-          </p>
+          {goal && (
+            <p>
+              Цель «{goal.name}»: {formatPermille(preview.progressFrom)} → {formatPermille(preview.progressTo)}
+              {preview.goalDelayDays !== null && preview.goalDelayDays > 0
+                ? `, отодвинется примерно на ${approxDuration(preview.goalDelayDays)}`
+                : ''}
+              .
+            </p>
+          )}
         </div>
       )}
       {error && <p className="field-error">{error}</p>}
@@ -161,7 +167,7 @@ export function WithdrawSheet({
         className="btn btn-primary btn-wide"
         onClick={() => {
           if (!amount) return setError('Введите сумму');
-          if (amount > balance) return setError('На счёте цели меньше');
+          if (amount > balance) return setError('На счёте меньше');
           onConfirm(amount);
         }}
       >

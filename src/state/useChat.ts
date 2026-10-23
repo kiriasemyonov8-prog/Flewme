@@ -32,5 +32,5 @@ export function useChat(store: FinanceStore): ChatStore {
 /** Текущее настроение Флюми: по тратам за сегодня; без данных — спокойствие. */
 export function currentMood(store: FinanceStore): Mood {
   if (store.limit.status !== 'ok') return 'calm';
-  return robotMood(spentTodayMain(store.data, store.today), store.limit.dailyLimit);
+  return robotMood(spentTodayMain(store.data, store.today), store.limit.dailyLimit, store.limit.noFreeMoney);
 }

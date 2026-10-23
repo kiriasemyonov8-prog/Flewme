@@ -142,12 +142,13 @@ describe('покупка: примеры демо (SPEC, раздел 10)', () =
 });
 
 describe('«Взять из накоплений»', () => {
-  it('10 500 ₽: лимит с 1 050 до 1 400, цель отодвинется примерно на 3 недели', () => {
+  it('10 500 ₽: лимит с 1 050 до 1 400, цель отодвинется примерно на 2,5 недели', () => {
     const { data, limit } = demoLimit();
-    const p = previewWithdrawal(data, limit, DEMO_GOAL, rub(10_500), T);
+    const p = previewWithdrawal(data, limit, DEMO_GOAL.accountId, rub(10_500), T)!;
     expect(p.limitFrom).toBe(rub(1_050));
     expect(p.limitTo).toBe(rub(1_400));
-    expect(p.goalDelayDays).toBe(24);
+    // обычный месяц (3.26): 30% × (120 000 − 40 000 − 15 000) = 19 500 ₽; 10 500 × 30 / 19 500 → 17 дней
+    expect(p.goalDelayDays).toBe(17);
   });
 });
 

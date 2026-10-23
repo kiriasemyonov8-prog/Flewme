@@ -2,7 +2,7 @@
 import { CONFIG } from './config';
 import { diffDays, type ISODate } from './dates';
 import { ZERO, add, divFloor, max, min, mulInt, sub, sum, type Kopecks } from './money';
-import { paymentOccurrences } from './schedule';
+import { dataPayments } from './schedule';
 import type { Account, Expense, FinanceData } from './types';
 
 interface Dated {
@@ -29,7 +29,7 @@ export function savingsAccount(data: FinanceData): Account | undefined {
 /** Платежи, уже наступившие после записи остатка и до сегодняшнего дня (не включая сегодня). */
 function paymentsPaidSinceSnapshot(account: Account, data: FinanceData, today: ISODate): Kopecks {
   const paidOnAsOf = new Set(account.paidOnAsOf ?? []);
-  const occ = paymentOccurrences(data.payments, account.asOf, today).filter(
+  const occ = dataPayments(data, account.asOf, today).filter(
     (p) => p.date < today && !(p.date === account.asOf && paidOnAsOf.has(p.key)),
   );
   return sum(occ.map((p) => p.amount));

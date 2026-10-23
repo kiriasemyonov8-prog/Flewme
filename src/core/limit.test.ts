@@ -66,10 +66,11 @@ describe('нет данных — лимит не выдаётся', () => {
     expect(computeLimit(d, T)).toEqual({ status: 'noData', missing: ['mainBalance'] });
   });
 
-  it('нет ни одного ожидаемого дохода', () => {
+  it('нет регулярного дохода — деньги тянутся на 30 дней вперёд (3.26)', () => {
     const d = demo();
     d.regularIncomes = [];
-    expect(computeLimit(d, T)).toEqual({ status: 'noData', missing: ['income'] });
+    expect(ok(d).horizon).toBe('2026-11-20');
+    expect(ok(d).days).toBe(30);
   });
 });
 
@@ -177,14 +178,31 @@ describe('горизонт', () => {
     }
   });
 
-  it('если регулярных доходов нет, горизонт — ближайший разовый', () => {
+  it('без регулярного дохода горизонт — дата «Дотянуть до», разовый доход его не меняет (3.26)', () => {
     const d = demo();
     d.regularIncomes = [];
     d.oneOffIncomes.push({ id: 'p', name: 'Проект', amount: rub(20_000), date: '2026-11-01' });
+    d.settings.stretchUntil = '2026-11-05';
     const r = ok(d);
-    expect(r.horizon).toBe('2026-11-01');
-    expect(r.days).toBe(11);
-    expect(r.reservedPayments).toHaveLength(0);
+    expect(r.horizon).toBe('2026-11-05');
+    expect(r.days).toBe(15);
+    expect(r.waiting).toBe(false);
+    // прошедшая дата — снова 30 дней вперёд
+    expect(ok(d, '2026-11-06').horizon).toBe('2026-12-06');
+  });
+
+  it('дополнительный доход (не покрывает платежи) не служит горизонтом и не начинает период (3.26)', () => {
+    const d = demo();
+    d.regularIncomes.push({ id: 'side', name: 'Подработка', min: rub(5_000), max: rub(5_000), schedule: { type: 'days', days: [25] } });
+    expect(ok(d).horizon).toBe('2026-11-20');
+    d.receipts.push({ id: 'r-side', occurrenceKey: 'side:2026-10:25', amount: rub(5_000), date: T, createdAt: 9000 });
+    expect(ok(d).savePlan.periodKey).not.toBe('r-side');
+  });
+
+  it('еженедельный доход: каждую пятницу', () => {
+    const d = demo();
+    d.regularIncomes = [{ id: 'w', name: 'Выплата', min: rub(20_000), max: rub(20_000), schedule: { type: 'weekly', weekday: 4 } }];
+    expect(ok(d).horizon).toBe('2026-10-23');
   });
 
   it('доход ожидается сегодня и не подтверждён — дней 1', () => {

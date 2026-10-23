@@ -355,6 +355,19 @@
   align-items: stretch;
 }
 
+.goal-warning {
+  margin: 8px 0 0;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--verdict-wait);
+}
+
+.stat-link {
+  align-self: flex-start;
+  margin-top: 4px;
+  padding: 0;
+}
+
 .reminder-actions {
   display: flex;
   flex-wrap: wrap;

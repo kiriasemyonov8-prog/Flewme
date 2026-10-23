@@ -33,11 +33,20 @@ describe('переводы', () => {
 });
 
 describe('способ накопления в окне «Покупка»', () => {
-  it('из отложенного: 58 500 ₽ при 13 500 ₽ в месяц — 130 дней, «Не стоит»', () => {
+  it('из отложенного по обычному месяцу (3.26): 58 500 ₽ при 19 500 ₽ в месяц — 90 дней, «Лучше подождать»', () => {
     const d = demo();
+    // 30% × (120 000 − 40 000 − 15 000) = 19 500 ₽ в месяц
     const r = evaluatePurchase(d, limit(d), rub(90_000), { kind: 'main' }, T, 'setAside');
-    expect(r.verdict).toBe('no');
-    expect(r.readyDate).toBe('2027-02-28');
+    expect(r.verdict).toBe('wait');
+    expect(r.readyDate).toBe('2027-01-19');
+  });
+
+  it('откладывать не из чего — срок не называется', () => {
+    const d = demo();
+    d.regularIncomes[0] = { ...d.regularIncomes[0], min: rub(50_000) };
+    const r = evaluatePurchase(d, limit(d), rub(90_000), { kind: 'main' }, T, 'setAside');
+    expect(r.verdict).toBe('unknown');
+    expect(r.readyDate).toBeNull();
   });
 
   it('урезать лимит: 20% от 1 050 = 210 ₽ в день, 6 300 ₽ в месяц', () => {

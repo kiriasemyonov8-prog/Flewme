@@ -1,6 +1,10 @@
 ﻿import { Download, Minus, Plus, Upload } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { confirmIncome } from '../core/actions';
+import { addDays, type ISODate } from '../core/dates';
+import type { Kopecks } from '../core/money';
+import { repeatText } from '../ui/Repeat';
+import { GapSheet, StretchSheet } from './profile/GapSheet';
 import { exportBackup, importBackup, type ImportError } from '../core/backup';
 import { demoData } from '../core/demo';
 import { formatDayMonth, formatRub } from '../core/format';
@@ -23,6 +27,8 @@ type Open =
   | { kind: 'oneOff' }
   | { kind: 'removeOneOff'; id: string; name: string }
   | { kind: 'payment'; id?: string }
+  | { kind: 'gap'; amount: Kopecks; asOf: ISODate }
+  | { kind: 'stretch' }
   | { kind: 'transport' }
   | { kind: 'time' }
   | { kind: 'category'; id?: string }
@@ -31,6 +37,7 @@ type Open =
 function scheduleText(i: RegularIncome): string {
   const s = i.schedule;
   if (s.type === 'window') return `${s.fromDay}–${s.toDay} числа`;
+  if (s.type === 'weekly' || s.type === 'biweekly') return repeatText(s);
   return `${s.days.join(' и ')} числа`;
 }
 
@@ -154,6 +161,18 @@ export function ProfileScreen({ store }: { store: FinanceStore }) {
         <button type="button" className="add-row" onClick={() => setOpen({ kind: 'income' })}>
           <Plus size={18} aria-hidden /> Регулярный доход
         </button>
+        {data.regularIncomes.length === 0 && (
+          <RowButton
+            title="Дотянуть до"
+            sub="регулярного дохода нет: до какой даты должны хватить деньги"
+            value={
+              data.settings.stretchUntil && data.settings.stretchUntil > today
+                ? formatDayMonth(data.settings.stretchUntil)
+                : '30 дней вперёд'
+            }
+            onClick={() => setOpen({ kind: 'stretch' })}
+          />
+        )}
 
         <div className="sub-title">Ожидаемые разовые доходы</div>
         {expectedOneOff.map((i) => (
@@ -173,7 +192,13 @@ export function ProfileScreen({ store }: { store: FinanceStore }) {
         {data.payments.map((p) => {
           const amount = paymentAmountFor(p, thisMonth) ?? p.amounts[0].amount;
           return (
-            <RowButton key={p.id} title={p.name} sub={`${p.day} числа`} value={formatRub(amount)} onClick={() => setOpen({ kind: 'payment', id: p.id })} />
+            <RowButton
+              key={p.id}
+              title={p.name}
+              sub={p.repeat ? repeatText(p.repeat) : `${p.day} числа`}
+              value={formatRub(amount)}
+              onClick={() => setOpen({ kind: 'payment', id: p.id })}
+            />
           );
         })}
         <button type="button" className="add-row" onClick={() => setOpen({ kind: 'payment' })}>
@@ -408,6 +433,8 @@ export function ProfileScreen({ store }: { store: FinanceStore }) {
           }
           onSave={({ amount, asOf, name, paidOnAsOf, receivedIncome }) => {
             const now = Date.now();
+            // Денег заметно меньше, чем по записям, — предложим разнести неучтённые траты (3.26, п. 13).
+            const gap = open.account ? P.balanceGap(data, open.account.id, amount, asOf, paidOnAsOf) : null;
             update((d) => {
               if (!open.account) return P.addAccount(d, open.accountKind, amount, asOf, now, newId(), name, paidOnAsOf);
               let next = P.setAccountBalance(d, open.account.id, amount, asOf, now, paidOnAsOf);
@@ -417,6 +444,48 @@ export function ProfileScreen({ store }: { store: FinanceStore }) {
               }
               return P.renameAccount(next, open.account.id, name);
             });
+            if (gap?.notice && !receivedIncome) setOpen({ kind: 'gap', amount: gap.gap, asOf });
+            else close();
+          }}
+        />
+      )}
+      {open?.kind === 'gap' && (
+        <GapSheet
+          data={data}
+          gap={open.amount}
+          onClose={close}
+          onRecord={(categoryId, amount, note) => {
+            const main = data.accounts.find((a) => a.kind === 'main');
+            if (!main) return;
+            // Вчерашним днём: трата уже вошла в новый остаток и второй раз его не уменьшит.
+            update((d) => ({
+              ...d,
+              expenses: [
+                ...d.expenses,
+                {
+                  id: newId(),
+                  amount,
+                  accountId: main.id,
+                  categoryId,
+                  date: addDays(open.asOf, -1),
+                  createdAt: Date.now(),
+                  ...(note ? { note } : {}),
+                },
+              ],
+            }));
+            const rest = (open.amount - amount) as Kopecks;
+            if (rest > 0) setOpen({ ...open, amount: rest });
+            else close();
+          }}
+        />
+      )}
+      {open?.kind === 'stretch' && (
+        <StretchSheet
+          today={today}
+          initial={data.settings.stretchUntil}
+          onClose={close}
+          onSave={(until) => {
+            update((d) => P.updateSettings(d, { stretchUntil: until }));
             close();
           }}
         />
@@ -424,6 +493,7 @@ export function ProfileScreen({ store }: { store: FinanceStore }) {
       {open?.kind === 'income' && (
         <RegularIncomeSheet
           income={open.income}
+          today={today}
           newId={newId()}
           onClose={close}
           onDelete={
@@ -475,10 +545,10 @@ export function ProfileScreen({ store }: { store: FinanceStore }) {
                 }
               : undefined
           }
-          onSave={({ name, day, amount, fromMonth, amountChanged }) => {
+          onSave={({ name, day, amount, fromMonth, amountChanged, repeat }) => {
             update((d) => {
-              if (!open.id) return P.addPayment(d, newId(), name, day, amount, thisMonth);
-              const next = P.updatePaymentInfo(d, open.id, name, day);
+              if (!open.id) return P.addPayment(d, newId(), name, day, amount, thisMonth, repeat);
+              const next = P.updatePaymentInfo(d, open.id, name, day, repeat);
               return amountChanged ? P.changePaymentAmount(next, open.id, amount, fromMonth) : next;
             });
             close();

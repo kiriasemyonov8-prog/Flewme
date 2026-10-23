@@ -2,9 +2,10 @@
 // задаётся в профиле, а Флюми сам делит отложенное между целями по срокам:
 // чем ближе срок, тем раньше цель получает свою долю; цели без срока — в конце очереди.
 import { currentBalance } from './balance';
+import { CONFIG } from './config';
 import { diffDays, type ISODate } from './dates';
 import { goalProgressPermille } from './goal';
-import { ZERO, kop, max, min, sub, type Kopecks } from './money';
+import { ZERO, add, kop, max, min, percentOf, sub, type Kopecks } from './money';
 import type { FinanceData, Goal } from './types';
 
 const MONTH_DAYS = 30;
@@ -36,30 +37,53 @@ export interface GoalShare {
   amount: Kopecks;
 }
 
+/** Сколько цели со сроком нужно откладывать в месяц, чтобы успеть (вверх до рубля). */
+export function monthlyNeed(data: FinanceData, goal: Goal, today: ISODate): Kopecks {
+  const left = max(ZERO, sub(goal.target, goalBalance(data, goal, today)));
+  if (!goal.deadline) return left;
+  const months = Math.max(1, Math.ceil(diffDays(today, goal.deadline) / MONTH_DAYS));
+  // Округляем вверх до рубля, чтобы переводить было удобно.
+  return kop(Math.ceil(left / months / 100) * 100);
+}
+
 /**
  * Делит сумму откладывания между целями. Цель со сроком получает столько, сколько ей нужно
  * в этот период, чтобы успеть к сроку; что осталось — следующей по очереди. Цели без срока
- * забирают остаток по очереди. Если все цели закрыты, остаток достаётся первой цели.
+ * забирают остаток по очереди и всегда получают не меньше своей доли (3.26, п. 16), чтобы
+ * далёкая цель со сроком не забирала всё. Если все цели закрыты, остаток достаётся первой цели.
  */
 export function allocateSetAside(data: FinanceData, total: Kopecks, today: ISODate): GoalShare[] {
   const queue = goalsByPriority(data.goals);
   const shares = queue.map((goal) => ({ goal, amount: ZERO }));
-  let rest = total;
+  const mixed = queue.some((g) => g.deadline) && queue.some((g) => !g.deadline);
+  const reserve = mixed ? percentOf(total, CONFIG.goalsNoDeadlinePercent) : ZERO;
+  let rest = sub(total, reserve);
+  let reserveAdded = false;
   for (const share of shares) {
-    if (rest <= 0) break;
-    const left = max(ZERO, sub(share.goal.target, goalBalance(data, share.goal, today)));
-    let need = left;
-    if (share.goal.deadline) {
-      const months = Math.max(1, Math.ceil(diffDays(today, share.goal.deadline) / MONTH_DAYS));
-      // Округляем вверх до рубля, чтобы переводить было удобно.
-      need = kop(Math.ceil(left / months / 100) * 100);
+    // Доля целей без срока добавляется один раз — перед первой из них (они в конце очереди).
+    if (!share.goal.deadline && !reserveAdded) {
+      rest = add(rest, reserve);
+      reserveAdded = true;
     }
-    const give = min(rest, need);
+    if (rest <= 0) continue;
+    const give = min(rest, monthlyNeed(data, share.goal, today));
     share.amount = give;
     rest = sub(rest, give);
   }
   if (rest > 0 && shares.length > 0) shares[0].amount = kop(shares[0].amount + rest);
   return shares;
+}
+
+/** Цель со сроком не успевает даже со всем отложенным (3.26, п. 16): сколько нужно и сколько есть. */
+export function goalBehind(
+  data: FinanceData,
+  goal: Goal,
+  monthlySaving: Kopecks,
+  today: ISODate,
+): { need: Kopecks; saving: Kopecks } | null {
+  if (!goal.deadline) return null;
+  const need = monthlyNeed(data, goal, today);
+  return need > monthlySaving ? { need, saving: monthlySaving } : null;
 }
 
 /** Сколько в месяц откладывается на эту цель (по сумме откладывания за период). */

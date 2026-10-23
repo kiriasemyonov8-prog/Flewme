@@ -9,9 +9,11 @@ import type { ISODate } from '../core/dates';
 import { explainAvailable, explainMainAccount, type ExplainLine } from '../core/explain';
 import { formatDayMonth, formatRub, formatRubWhole, parseRubInput } from '../core/format';
 import { allocateSetAside } from '../core/goals';
-import { remainingToday, type LimitResult } from '../core/limit';
-import { kop, sub, type Kopecks } from '../core/money';
-import { evaluatePurchase } from '../core/purchase';
+import { remainingToday, type LimitOk, type LimitResult } from '../core/limit';
+import { ZERO, kop, sub, type Kopecks } from '../core/money';
+import { monthlyDeficit } from '../core/month';
+import { monthExpenses } from '../core/overview';
+import { evaluatePurchase, savingsTotal } from '../core/purchase';
 import type { FinanceData } from '../core/types';
 
 export interface AssistantContext {
@@ -82,7 +84,27 @@ function renderLines(lines: ExplainLine[]): string {
 }
 
 const NEED_DATA =
-  'Чтобы ответить честно, мне нужны остаток основного счёта и ожидаемый доход. Укажите их в профиле — без них я не буду гадать.';
+  'Чтобы ответить честно, мне нужен остаток основного счёта. Укажите его в профиле — без него я не буду гадать.';
+
+/** «Что можно сделать», когда денег не хватает (3.26, п. 11): только то, что видно по данным. */
+function shortageAdvice(data: FinanceData, limit: LimitOk, today: ISODate): string {
+  const tips: string[] = [];
+  const deficit = monthlyDeficit(data, today);
+  if (limit.base < 0) tips.push(`До ${formatDayMonth(limit.horizon)} не хватает ${formatRub(sub(ZERO, limit.base))} — это с учётом всех обязательных платежей.`);
+  if (deficit && deficit > 0) tips.push(`По записям за последние 30 дней расходы больше доходов примерно на ${formatRubWhole(deficit)} в месяц.`);
+  if (data.settings.savePercent > 0) tips.push(`Можно на время выключить откладывание в профиле («Откладывание»).`);
+  const savings = savingsTotal(data, today);
+  if (savings > 0) tips.push(`В накоплениях ${formatRub(savings)}: часть можно взять кнопкой «Взять» в «Финансах» — лимит сразу пересчитается.`);
+  const top = monthExpenses(data, today.slice(0, 7)).byCategory.find(
+    (c) => !data.questionnaire.protectedCategoryIds.includes(c.categoryId),
+  );
+  if (top) {
+    const name = data.categories.find((c) => c.id === top.categoryId)?.name ?? 'Другое';
+    tips.push(`Больше всего в этом месяце ушло на «${name}» — ${formatRub(top.total)}. Посмотрите, что из этого можно отложить.`);
+  }
+  tips.push('Если платёж можно перенести, договоритесь об этом и укажите новую дату — Флюми пересчитает.');
+  return `Без паники, давайте по шагам:\n\n${tips.map((t) => `• ${t}`).join('\n')}`;
+}
 
 function has(re: RegExp, q: string): boolean {
   return re.test(q);
@@ -120,6 +142,9 @@ export const demoAssistant: Assistant = {
     if (limit.status !== 'ok') {
       if (has(/(лимит|сегодня|зарплат|хватит|почему|откуда|купить|покупк|накопить)/, q)) return { text: NEED_DATA };
     } else {
+      if (has(/(что (можно )?(сделать|делать)|не хватает денег|денег не хватает)/, q) && !amount) {
+        return { text: shortageAdvice(data, limit, today) };
+      }
       // Покупка с суммой: «хватит ли на 90 000», «почему не хватает на 200 тыс»
       if (amount && has(/(купить|покупк|хватит|хватает|могу ли|стоит ли|накопить)/, q)) {
         const source = { kind: has(/(все|всех|всего|накоплен)/, q) ? 'all' : 'main' } as const;

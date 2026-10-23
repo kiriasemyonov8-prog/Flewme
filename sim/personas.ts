@@ -108,28 +108,28 @@ export const PERSONAS: Persona[] = [
   {
     id: 'galina',
     name: 'Галина Петровна, 71, пенсионерка',
-    about: 'Пенсия 21 800 ₽ 5-го, коммуналка 5 200 ₽ 12-го, телефон 450 ₽ 20-го. Очень аккуратна: открывает каждый день, всё записывает, закрывает день. Копит на ремонт кухни (120 000 ₽ к маю), уже 40 000 ₽.',
+    about: 'Пенсия 21 800 ₽ 5-го, коммуналка 5 200 ₽ 12-го, телефон 450 ₽ 20-го, аптека 1 200 ₽ по средам (еженедельный платёж). Очень аккуратна: открывает каждый день, всё записывает, закрывает день. Копит на ремонт кухни (120 000 ₽ к маю), уже 40 000 ₽.',
     seed: 33,
     trueMain: 9000,
     trueOther: { 'acc-kitchen': 40000 },
-    habits: { open: 1, record: 1, close: 1, balanceEvery: 14, confirm: 'same', marksPaid: true },
+    habits: { open: 1, record: 1, close: 1, balanceEvery: 14, confirm: 'same', marksPaid: true, transfersSetAside: true },
     setup: (d0, now) =>
       base(d0, now, 9000, (d) => {
         d = upsertRegularIncome(d, regular('pension', 'Пенсия', 21800, 21800, { type: 'days', days: [5] }));
         d = addPayment(d, 'utils', 'Коммуналка', 12, rub(5200), '2026-09');
         d = addPayment(d, 'phone', 'Телефон', 20, rub(450), '2026-09');
+        // Аптека по средам — еженедельный обязательный платёж (3.26, п. 14)
+        d = addPayment(d, 'pharmacy', 'Аптека', 1, rub(1200), '2026-09', { type: 'weekly', weekday: 2 });
         d = updateSettings(d, { savePercent: 10 });
         return createGoal(d, { id: 'kitchen', name: 'Ремонт кухни', target: rub(120000), deadline: '2027-05-01' }, rub(40000), d0, now);
       }),
     incomes: (c) => (dom(c.date) === 5 ? [{ rubles: 21800, kind: 'regular', name: 'пенсия' }] : []),
-    bills: (c) =>
-      dom(c.date) === 12 ? [{ rubles: c.date >= '2026-12-01' ? 6100 : 5200, name: 'коммуналка' }] :
-      dom(c.date) === 20 ? [{ rubles: 450, name: 'телефон' }] : [],
-    spend: (c) => {
-      const out = [{ rubles: c.r.between(280, 520), cat: 'food' }];
-      if (wd(c.date) === 2) out.push({ rubles: c.r.between(900, 1400), cat: 'health' });
-      return out;
-    },
+    bills: (c) => [
+      ...(dom(c.date) === 12 ? [{ rubles: c.date >= '2026-12-01' ? 6100 : 5200, name: 'коммуналка' }] : []),
+      ...(dom(c.date) === 20 ? [{ rubles: 450, name: 'телефон' }] : []),
+      ...(wd(c.date) === 2 ? [{ rubles: 1200, name: 'аптека' }] : []),
+    ],
+    spend: (c) => [{ rubles: c.r.between(280, 520), cat: 'food' }],
     events: (c, api) => {
       if (c.day === 13) {
         // после пенсии переводит отложенное на кухню
@@ -153,13 +153,13 @@ export const PERSONAS: Persona[] = [
   {
     id: 'ruslan',
     name: 'Руслан, 27, курьер',
-    about: 'Выплаты по понедельникам 14–26 тыс. ₽. В приложении можно указать только дни месяца, поэтому поставил 1, 8, 15, 22, 29. Комната 18 000 ₽ 1-го. Бензин ~700 ₽/день: в настройках транспорт 15 000 ₽ в месяц и ещё записывает заправки как траты.',
+    about: 'Выплаты по понедельникам 14–26 тыс. ₽ (в приложении — график «каждую неделю, по понедельникам»). Комната 18 000 ₽ 1-го. Бензин ~700 ₽/день: в настройках транспорт 15 000 ₽ в месяц и ещё записывает заправки как траты.',
     seed: 44,
     trueMain: 11000,
     habits: { open: 0.85, record: 0.8, close: 0.5, balanceEvery: 7, confirm: 'same', marksPaid: false },
     setup: (d0, now) =>
       base(d0, now, 11000, (d) => {
-        d = upsertRegularIncome(d, regular('pay', 'Выплата', 14000, 26000, { type: 'days', days: [1, 8, 15, 22, 29] }));
+        d = upsertRegularIncome(d, regular('pay', 'Выплата', 14000, 26000, { type: 'weekly', weekday: 0 }));
         d = addPayment(d, 'room', 'Комната', 1, rub(18000), '2026-09');
         return updateSettings(d, { transportMonthly: rub(15000) });
       }),
@@ -189,7 +189,7 @@ export const PERSONAS: Persona[] = [
     seed: 55,
     trueMain: 62000,
     trueOther: { 'acc-trip': 150000 },
-    habits: { open: 0.9, record: 0.85, close: 0.7, balanceEvery: 12, confirm: 'same', marksPaid: true, lateRecord: 0.15 },
+    habits: { open: 0.9, record: 0.85, close: 0.7, balanceEvery: 12, confirm: 'same', marksPaid: true, lateRecord: 0.15, transfersSetAside: true },
     setup: (d0, now) =>
       base(d0, now, 62000, (d) => {
         d = upsertRegularIncome(d, regular('salary', 'Зарплата', 120000, 150000, { type: 'window', fromDay: 10, toDay: 20 }));
@@ -292,7 +292,7 @@ export const PERSONAS: Persona[] = [
         const l = api.limit();
         if (l.status === 'ok') {
           const goal = c.data.goals[0];
-          api.note(`событие: «Взять из накоплений» 40 000 ₽, накоплений ${formatRub(savingsTotal(c.data, c.date))}` + (goal ? `, превью ${JSON.stringify(previewWithdrawal(c.data, l, goal, rub(40000), c.date))}` : ''));
+          api.note(`событие: «Взять из накоплений» 40 000 ₽, накоплений ${formatRub(savingsTotal(c.data, c.date))}` + (goal ? `, превью ${JSON.stringify(previewWithdrawal(c.data, l, goal.accountId, rub(40000), c.date))}` : ''));
         } else api.note('событие: хотел «Взять из накоплений», но лимита нет');
         api.update((d) => addTransfer(d, 'savings', 'main', rub(40000), 'withdraw', c.date, api.id(), api.now()));
         api.moveTrue(false, 40000);
@@ -341,7 +341,7 @@ export const PERSONAS: Persona[] = [
     seed: 99,
     trueMain: 380000,
     trueOther: { 'acc-car': 2400000, broker: 1100000 },
-    habits: { open: 0.8, record: 0.4, close: 0, balanceEvery: 3, confirm: 'same', marksPaid: true },
+    habits: { open: 0.8, record: 0.4, close: 0, balanceEvery: 3, confirm: 'same', marksPaid: true, transfersSetAside: true },
     setup: (d0, now) =>
       base(d0, now, 380000, (d) => {
         d = upsertRegularIncome(d, regular('salary', 'Зарплата', 210000, 210000, { type: 'days', days: [10, 25] }));

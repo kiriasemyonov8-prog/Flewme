@@ -1,22 +1,27 @@
 import { useState } from 'react';
+import type { ISODate } from '../../core/dates';
 import { parseRubInput, toRubInput } from '../../core/format';
-import type { RegularIncome } from '../../core/types';
+import type { IncomeSchedule, RegularIncome } from '../../core/types';
+import { DateField } from '../../ui/Calendar';
 import { AmountPad, DayGrid, Segmented, TextField } from '../../ui/Form';
+import { ChoiceChips, WeekdayGrid } from '../../ui/Repeat';
 import { Sheet } from '../../ui/Sheet';
 
 type AmountKind = 'fixed' | 'range';
-type ScheduleKind = 'days' | 'window';
+type ScheduleKind = IncomeSchedule['type'];
 
-/** Регулярный доход: вводится один раз, повторяется каждый месяц (SPEC, раздел 8). */
+/** Регулярный доход: вводится один раз, повторяется каждый месяц или неделю (SPEC, раздел 8, 3.26). */
 export function RegularIncomeSheet({
   income,
   newId,
+  today,
   onSave,
   onDelete,
   onClose,
 }: {
   income?: RegularIncome;
   newId: string;
+  today: ISODate;
   onSave: (income: RegularIncome) => void;
   onDelete?: () => void;
   onClose: () => void;
@@ -25,14 +30,13 @@ export function RegularIncomeSheet({
   const [amountKind, setAmountKind] = useState<AmountKind>(income && income.min !== income.max ? 'range' : 'fixed');
   const [texts, setTexts] = useState([income ? toRubInput(income.min) : '', income ? toRubInput(income.max) : '']);
   const [active, setActive] = useState(0);
-  const [scheduleKind, setScheduleKind] = useState<ScheduleKind>(income?.schedule.type ?? 'days');
+  const s = income?.schedule;
+  const [scheduleKind, setScheduleKind] = useState<ScheduleKind>(s?.type ?? 'days');
   const [days, setDays] = useState<number[]>(
-    income?.schedule.type === 'days'
-      ? income.schedule.days
-      : income?.schedule.type === 'window'
-        ? [income.schedule.fromDay, income.schedule.toDay]
-        : [],
+    s?.type === 'days' ? s.days : s?.type === 'window' ? [s.fromDay, s.toDay] : [],
   );
+  const [weekday, setWeekday] = useState<number | null>(s?.type === 'weekly' ? s.weekday : null);
+  const [from, setFrom] = useState<ISODate>(s?.type === 'biweekly' ? s.from : today);
   const [error, setError] = useState<string | null>(null);
 
   function toggleDay(d: number) {
@@ -52,13 +56,16 @@ export function RegularIncomeSheet({
     if (max < min) return setError('Верхняя граница меньше нижней');
     if (scheduleKind === 'days' && days.length === 0) return setError('Выберите хотя бы один день');
     if (scheduleKind === 'window' && days.length !== 2) return setError('Выберите первый и последний день окна');
-    onSave({
-      id: income?.id ?? newId,
-      name: name.trim() || 'Доход',
-      min,
-      max,
-      schedule: scheduleKind === 'days' ? { type: 'days', days } : { type: 'window', fromDay: days[0], toDay: days[1] },
-    });
+    if (scheduleKind === 'weekly' && weekday === null) return setError('Выберите день недели');
+    const schedule: IncomeSchedule =
+      scheduleKind === 'days'
+        ? { type: 'days', days }
+        : scheduleKind === 'window'
+          ? { type: 'window', fromDay: days[0], toDay: days[1] }
+          : scheduleKind === 'weekly'
+            ? { type: 'weekly', weekday: weekday! }
+            : { type: 'biweekly', from };
+    onSave({ id: income?.id ?? newId, name: name.trim() || 'Доход', min, max, schedule });
   }
 
   const fields =
@@ -73,29 +80,49 @@ export function RegularIncomeSheet({
     <Sheet title={income ? 'Регулярный доход' : 'Новый регулярный доход'} onClose={onClose}>
       <TextField label="Название" value={name} onChange={setName} />
       <div className="sub-title">Когда приходит</div>
-      <Segmented
+      <ChoiceChips
         label="Когда приходит"
         value={scheduleKind}
         onChange={(v) => {
           setScheduleKind(v);
           setDays([]);
+          setError(null);
         }}
         options={[
-          { value: 'days', label: 'В определённые дни' },
-          { value: 'window', label: 'Плавает в окне дат' },
+          { value: 'days', label: 'В дни месяца' },
+          { value: 'window', label: 'Окно дат' },
+          { value: 'weekly', label: 'Каждую неделю' },
+          { value: 'biweekly', label: 'Раз в 2 недели' },
         ]}
       />
-      <p className="hint">
-        {scheduleKind === 'days'
-          ? 'Отметьте дни месяца, например 5 и 20.'
-          : 'Отметьте первый и последний день окна, например 10 и 20. Лимит считается по последнему дню и нижней сумме.'}
-      </p>
-      <DayGrid
-        label="Дни месяца"
-        selected={scheduleKind === 'window' && days.length === 2 ? range(days[0], days[1]) : days}
-        onToggle={toggleDay}
-      />
-      <p className="schedule-summary">{scheduleSummary(scheduleKind, days)}</p>
+      {(scheduleKind === 'days' || scheduleKind === 'window') && (
+        <>
+          <p className="hint">
+            {scheduleKind === 'days'
+              ? 'Отметьте дни месяца, например 5 и 20.'
+              : 'Отметьте первый и последний день окна, например 10 и 20. Лимит считается по последнему дню и нижней сумме.'}
+          </p>
+          <DayGrid
+            label="Дни месяца"
+            selected={scheduleKind === 'window' && days.length === 2 ? range(days[0], days[1]) : days}
+            onToggle={toggleDay}
+          />
+          <p className="schedule-summary">{scheduleSummary(scheduleKind, days)}</p>
+        </>
+      )}
+      {scheduleKind === 'weekly' && (
+        <>
+          <p className="hint">В какой день недели приходят деньги.</p>
+          <WeekdayGrid
+            value={weekday}
+            onChange={(v) => {
+              setWeekday(v);
+              setError(null);
+            }}
+          />
+        </>
+      )}
+      {scheduleKind === 'biweekly' && <DateField label="Ближайшая выплата" value={from} onChange={setFrom} today={today} />}
 
       <div className="sub-title">Сколько</div>
       <Segmented
@@ -132,7 +159,7 @@ export function RegularIncomeSheet({
   );
 }
 
-function scheduleSummary(kind: ScheduleKind, days: number[]): string {
+function scheduleSummary(kind: 'days' | 'window', days: number[]): string {
   if (days.length === 0) return 'Дни пока не выбраны';
   if (kind === 'days') return `Каждый месяц: ${days.join(' и ')} числа`;
   if (days.length === 1) return `Начало окна: ${days[0]} число. Теперь отметьте последний день.`;

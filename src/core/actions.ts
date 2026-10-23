@@ -1,11 +1,14 @@
 // Действия пользователя: чистые функции «данные → новые данные».
+import { currentBalance, mainAccount } from './balance';
 import { CONFIG } from './config';
 import { closeDay } from './days';
 import { addDays, diffDays, type ISODate } from './dates';
-import { computeLimit } from './limit';
+import { allocateSetAside } from './goals';
+import { computeLimit, type LimitOk } from './limit';
 import type { Kopecks } from './money';
-import { oneOffOccurrence, openIncomes, type IncomeOccurrence } from './schedule';
-import type { FinanceData } from './types';
+import { addTransfer } from './money-moves';
+import { dataPayments, oneOffOccurrence, openIncomes, type IncomeOccurrence, type PaymentOccurrence } from './schedule';
+import type { Expense, FinanceData } from './types';
 
 export interface ExpenseInput {
   amount: Kopecks;
@@ -126,6 +129,83 @@ export function delayIncome(data: FinanceData, occurrenceKey: string, until: ISO
 export function dropOneOff(data: FinanceData, occurrenceKey: string): FinanceData {
   const id = occurrenceKey.slice('oneoff:'.length);
   return { ...data, oneOffIncomes: data.oneOffIncomes.filter((i) => i.id !== id) };
+}
+
+/** Та же трата уже записана только что (3.26, п. 19): двое с одного телефона, двойное нажатие. */
+export function recentDuplicate(data: FinanceData, e: ExpenseInput, now: number): Expense | null {
+  const window = CONFIG.duplicateMinutes * 60_000;
+  return (
+    data.expenses.find(
+      (x) =>
+        x.amount === e.amount &&
+        x.categoryId === e.categoryId &&
+        x.accountId === e.accountId &&
+        x.date === e.date &&
+        now - x.createdAt >= 0 &&
+        now - x.createdAt <= window,
+    ) ?? null
+  );
+}
+
+/**
+ * Платёж под вопросом (3.26, п. 20): по данным Флюми денег на него в его день не хватало.
+ * Спрашиваем только про платежи после записи остатка за последнюю неделю.
+ */
+export function paymentQuestion(data: FinanceData, today: ISODate): PaymentOccurrence | null {
+  const main = mainAccount(data);
+  if (!main) return null;
+  const from = [addDays(today, -7), data.startedOn, addDays(main.asOf, 1)].sort().at(-1)!;
+  const asked = new Set(data.paymentChecks ?? []);
+  for (const p of dataPayments(data, from, today)) {
+    if (asked.has(p.key)) continue;
+    if (currentBalance(main, data, addDays(p.date, -1)) < p.amount) return p;
+  }
+  return null;
+}
+
+/** «Да, прошёл». */
+export function confirmPaymentPaid(data: FinanceData, key: string): FinanceData {
+  return { ...data, paymentChecks: [...(data.paymentChecks ?? []), key] };
+}
+
+/** «Нет»: платёж переносится на выбранную дату и остаётся в резерве. */
+export function delayPayment(data: FinanceData, key: string, until: ISODate): FinanceData {
+  const rest = (data.paymentDelays ?? []).filter((d) => d.occurrenceKey !== key);
+  return { ...data, paymentDelays: [...rest, { occurrenceKey: key, until }] };
+}
+
+/** Куда переводить отложенное: по целям согласно очереди или на первый накопительный счёт. */
+export function setAsideTransfers(
+  data: FinanceData,
+  limit: LimitOk,
+  today: ISODate,
+): { title: string; amount: Kopecks; toAccountId?: string }[] {
+  if (limit.setAside <= 0) return [];
+  const firstSavings = data.accounts.find((a) => a.kind === 'savings');
+  return data.goals.length > 0
+    ? allocateSetAside(data, limit.setAside, today)
+        .filter((s) => s.amount > 0)
+        .map((s) => ({ title: `Отложить на «${s.goal.name}»`, amount: s.amount, toAccountId: s.goal.accountId }))
+    : [{ title: 'Отложить в накопления', amount: limit.setAside, toAccountId: firstSavings?.id }];
+}
+
+/** Напоминание перевести отложенное (3.26, п. 21): период идёт уже несколько дней, а оно не переведено. */
+export function setAsideReminderDue(data: FinanceData, limit: LimitOk, today: ISODate): boolean {
+  return (
+    limit.setAside > 0 &&
+    diffDays(limit.savePlan.periodStart, today) >= CONFIG.setAsideReminderDays &&
+    setAsideTransfers(data, limit, today).every((r) => r.toAccountId)
+  );
+}
+
+/** «Перевёл(а)»: все строки отложенного переведены. */
+export function transferSetAside(data: FinanceData, limit: LimitOk, today: ISODate, now: number, newId: () => string): FinanceData {
+  const main = mainAccount(data);
+  if (!main) return data;
+  return setAsideTransfers(data, limit, today).reduce(
+    (d, row) => (row.toAccountId ? addTransfer(d, main.id, row.toAccountId, row.amount, 'setAside', today, newId(), now) : d),
+    data,
+  );
 }
 
 /**

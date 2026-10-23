@@ -43,7 +43,7 @@ function explain(r: PurchaseResult): string {
     case 'breaksGoal':
       return `Покупка отодвинет цель${goal ? ` «${goal.name}»` : ''} больше чем на год. Можно найти вариант мягче.`;
     case 'cannotEstimate':
-      return `Не хватает ${formatRub(r.shortfall)}, а копить по вашим данным сейчас нечем, поэтому срок оценить нельзя.`;
+      return `Не хватает ${formatRub(r.shortfall)}, а откладывать по вашим данным сейчас не из чего, поэтому срок не назвать.`;
   }
 }
 
@@ -83,7 +83,13 @@ export function PurchaseScreen({ store }: { store: FinanceStore }) {
   const [error, setError] = useState<string | null>(null);
 
   const price = parseRubInput(text);
-  const result = shown && price && limit.status === 'ok' ? evaluatePurchase(data, limit, price, source, today, method) : null;
+  // Накопления и другие счета проверяются и без лимита (3.26, п. 18).
+  const needsLimit = source.kind === 'main' || source.kind === 'all';
+  const canCheck = limit.status === 'ok' || !needsLimit;
+  const result =
+    shown && price && canCheck
+      ? evaluatePurchase(data, limit.status === 'ok' ? limit : null, price, source, today, method)
+      : null;
 
   const sources: { value: string; label: string; source: PurchaseSource }[] = [
     { value: 'main', label: 'Основной', source: { kind: 'main' } },
@@ -111,11 +117,11 @@ export function PurchaseScreen({ store }: { store: FinanceStore }) {
         ))}
       </div>
 
-      {limit.status !== 'ok' ? (
+      {!canCheck ? (
         <div className="card stub">
           <p>
-            Чтобы проверить покупку, Флюми нужны остаток основного счёта и ожидаемый доход. Укажите их в профиле — без
-            них честный вывод сделать нельзя.
+            Чтобы проверить покупку с основного счёта, Флюми нужен его остаток. Укажите его в профиле — или выберите
+            источник «Накопления».
           </p>
         </div>
       ) : !result ? (
@@ -153,7 +159,7 @@ export function PurchaseScreen({ store }: { store: FinanceStore }) {
               <span className="row-sub">Доступно из выбранного</span>
               <span className="num">{formatRub(result.available)}</span>
             </div>
-            {result.limitAfter && result.shortfall === 0 && (
+            {result.limitAfter && result.shortfall === 0 && limit.status === 'ok' && (
               <div className="list-row">
                 <span className="row-sub">Лимит в день до {formatDayMonth(limit.horizon)}</span>
                 <span className="num">

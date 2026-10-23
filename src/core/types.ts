@@ -25,7 +25,11 @@ export interface Account {
 
 export type IncomeSchedule =
   | { type: 'days'; days: number[] } // один или несколько дней месяца
-  | { type: 'window'; fromDay: number; toDay: number }; // плавающая дата
+  | { type: 'window'; fromDay: number; toDay: number } // плавающая дата
+  | WeeklyRepeat;
+
+/** Повтор раз в неделю (день недели, пн = 0) или раз в две недели (от даты) (3.26). */
+export type WeeklyRepeat = { type: 'weekly'; weekday: number } | { type: 'biweekly'; from: ISODate };
 
 export interface RegularIncome {
   id: string;
@@ -77,8 +81,16 @@ export interface FixedPayment {
   name: string;
   /** День месяца 1–31. */
   day: number;
-  /** История сумм: изменение действует с выбранного месяца вперёд. */
+  /** История сумм: изменение действует с выбранного месяца вперёд. Сумма — за одно списание. */
   amounts: PaymentAmount[];
+  /** Не раз в месяц, а каждую неделю или раз в две недели (3.26); day тогда не используется. */
+  repeat?: WeeklyRepeat;
+}
+
+/** Платёж не прошёл: теперь ждём его к этой дате (3.26). */
+export interface PaymentDelay {
+  occurrenceKey: string;
+  until: ISODate;
 }
 
 export interface Expense {
@@ -135,6 +147,8 @@ export interface Settings {
   reminderEnabled: boolean;
   reminderTime: string; // 'HH:MM'
   staleBalanceDays: number;
+  /** Без регулярного дохода: до какой даты должны дотянуть деньги (3.26). */
+  stretchUntil?: ISODate;
 }
 
 export interface Questionnaire {
@@ -162,6 +176,8 @@ export interface SavePlan {
   createdOn: ISODate;
   /** Непереведённое откладывание прошлого периода, перенесённое в этот (3.25). */
   carried?: Kopecks;
+  /** Доходы периода, от которых уже посчитано откладывание (3.26). */
+  income?: Kopecks;
   /** Отпечаток доходов, платежей и транспорта: если они изменились, сумма считается заново. */
   basis: string;
 }
@@ -199,4 +215,7 @@ export interface FinanceData {
   lastLimit?: { date: ISODate; limit: Kopecks };
   incomeDelays?: IncomeDelay[];
   balanceGaps?: BalanceGap[];
+  /** Платежи, о которых уже спросили «прошёл?» и получили «да» (3.26). */
+  paymentChecks?: string[];
+  paymentDelays?: PaymentDelay[];
 }
