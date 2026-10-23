@@ -1,5 +1,5 @@
 // Закрытие дня, серия закрытых дней, устаревший остаток (SPEC, разделы 7, 9, 12).
-import { mainAccount } from './balance';
+import { mainAccount, spentTodayMain } from './balance';
 import { CONFIG } from './config';
 import { addDays, diffDays, type ISODate } from './dates';
 import { ZERO, max, sub, sum, type Kopecks } from './money';
@@ -11,18 +11,25 @@ export function spentOnDayMain(data: FinanceData, date: ISODate): Kopecks {
   return sum(data.expenses.filter((x) => x.accountId === main.id && x.date === date).map((x) => x.amount));
 }
 
+/**
+ * unsure — трат не записано, и человек не помнит, тратил ли (3.25): в «сэкономлено» ничего не идёт.
+ * Транспорт в пределах месячной суммы «сэкономлено» не увеличивает и не уменьшает.
+ */
 export function closeDay(
   data: FinanceData,
   date: ISODate,
   limit: Kopecks,
   mode: LeftoverMode,
+  unsure = false,
 ): DayClosure {
   const spent = spentOnDayMain(data, date);
+  const fromLimit = spentTodayMain(data, date);
   return {
     date,
     spent,
     limit,
-    saved: mode === 'account' ? max(ZERO, sub(limit, spent)) : ZERO,
+    saved: mode === 'account' && !unsure ? max(ZERO, sub(limit, fromLimit)) : ZERO,
+    ...(unsure ? { unsure: true } : {}),
   };
 }
 

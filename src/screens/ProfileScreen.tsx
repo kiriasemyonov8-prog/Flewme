@@ -1,5 +1,6 @@
 ﻿import { Download, Minus, Plus, Upload } from 'lucide-react';
 import { useRef, useState } from 'react';
+import { confirmIncome } from '../core/actions';
 import { exportBackup, importBackup, type ImportError } from '../core/backup';
 import { demoData } from '../core/demo';
 import { formatDayMonth, formatRub } from '../core/format';
@@ -405,11 +406,15 @@ export function ProfileScreen({ store }: { store: FinanceStore }) {
                 }
               : undefined
           }
-          onSave={({ amount, asOf, name, paidOnAsOf }) => {
+          onSave={({ amount, asOf, name, paidOnAsOf, receivedIncome }) => {
             const now = Date.now();
             update((d) => {
               if (!open.account) return P.addAccount(d, open.accountKind, amount, asOf, now, newId(), name, paidOnAsOf);
-              const next = P.setAccountBalance(d, open.account.id, amount, asOf, now, paidOnAsOf);
+              let next = P.setAccountBalance(d, open.account.id, amount, asOf, now, paidOnAsOf);
+              // Доход уже в этой сумме: подтверждаем его без второго прибавления (3.25).
+              if (receivedIncome) {
+                next = confirmIncome(next, receivedIncome.key, receivedIncome.amount, asOf, newId(), now + 1, true);
+              }
               return P.renameAccount(next, open.account.id, name);
             });
             close();

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { incomesToConfirm } from '../../core/actions';
 import type { ISODate } from '../../core/dates';
 import { formatRub, parseRubInput, toRubInput } from '../../core/format';
 import type { Kopecks } from '../../core/money';
@@ -31,7 +32,14 @@ export function BalanceSheet({
   today: ISODate;
   account?: Account;
   kind: AccountKind;
-  onSave: (v: { amount: Kopecks; asOf: ISODate; name: string; paidOnAsOf: string[] }) => void;
+  onSave: (v: {
+    amount: Kopecks;
+    asOf: ISODate;
+    name: string;
+    paidOnAsOf: string[];
+    /** Ожидаемый доход уже пришёл и вошёл в эту сумму (3.25). */
+    receivedIncome?: { key: string; amount: Kopecks };
+  }) => void;
   onDelete?: () => void;
   onClose: () => void;
 }) {
@@ -40,13 +48,27 @@ export function BalanceSheet({
   const [name, setName] = useState(account?.name ?? '');
   const [paid, setPaid] = useState<string[]>([]);
   const [error, setError] = useState(false);
+  const [received, setReceived] = useState(false);
+  const [incomeText, setIncomeText] = useState('');
+  const [active, setActive] = useState(0);
   const duePayments = kind === 'main' ? paymentOccurrences(data.payments, asOf, asOf) : [];
+  // Ожидаемый доход уже наступил и не подтверждён: возможно, он уже в этой сумме.
+  const dueIncome = kind === 'main' && account ? (incomesToConfirm(data, asOf).find((o) => o.early <= asOf) ?? null) : null;
 
   function save() {
     // Ноль на счёте — тоже честный остаток.
     const amount = text === '' || text === '0' ? (0 as Kopecks) : parseRubInput(text);
     if (amount === null) return setError(true);
-    onSave({ amount, asOf, name, paidOnAsOf: paid.filter((k) => duePayments.some((p) => p.key === k)) });
+    let receivedIncome: { key: string; amount: Kopecks } | undefined;
+    if (dueIncome && received) {
+      const incomeAmount = parseRubInput(incomeText);
+      if (!incomeAmount) {
+        setActive(1);
+        return setError(true);
+      }
+      receivedIncome = { key: dueIncome.key, amount: incomeAmount };
+    }
+    onSave({ amount, asOf, name, paidOnAsOf: paid.filter((k) => duePayments.some((p) => p.key === k)), receivedIncome });
   }
 
   return (
@@ -68,11 +90,19 @@ export function BalanceSheet({
       )}
       <p className="hint">Сколько сейчас на счёте — посмотрите в приложении банка.</p>
       <AmountPad
-        fields={[{ label: 'Сумма', text }]}
-        active={0}
-        onActivate={() => {}}
-        onChange={(_, update) => {
-          setText(update);
+        fields={
+          dueIncome && received
+            ? [
+                { label: 'На счёте', text },
+                { label: `${dueIncome.name}: пришло`, text: incomeText },
+              ]
+            : [{ label: 'Сумма', text }]
+        }
+        active={dueIncome && received ? active : 0}
+        onActivate={setActive}
+        onChange={(i, update) => {
+          if (i === 1) setIncomeText(update);
+          else setText(update);
           setError(false);
         }}
       />
@@ -90,6 +120,22 @@ export function BalanceSheet({
           </span>
         </label>
       ))}
+      {dueIncome && (
+        <label className="check-row">
+          <input
+            type="checkbox"
+            checked={received}
+            onChange={(e) => {
+              setReceived(e.target.checked);
+              if (e.target.checked) {
+                setIncomeText(String(Math.floor(dueIncome.min / 100)));
+                setActive(1);
+              } else setActive(0);
+            }}
+          />
+          <span>«{dueIncome.name}» уже пришла и есть в этой сумме</span>
+        </label>
+      )}
       <button type="button" className="btn btn-primary btn-wide" onClick={save}>
         Сохранить
       </button>

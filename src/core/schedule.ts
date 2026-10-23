@@ -1,7 +1,7 @@
 // Разворачивает регулярные доходы и платежи в конкретные даты.
 import { addMonths, dateInMonth, monthOf, type ISODate, type ISOMonth } from './dates';
 import type { Kopecks } from './money';
-import type { FixedPayment, IncomeReceipt, OneOffIncome, RegularIncome } from './types';
+import type { FinanceData, FixedPayment, IncomeDelay, IncomeReceipt, OneOffIncome, RegularIncome } from './types';
 
 export interface IncomeOccurrence {
   key: string;
@@ -73,12 +73,16 @@ export function oneOffOccurrence(income: OneOffIncome): IncomeOccurrence {
   };
 }
 
-/** Ожидаемые (ещё не подтверждённые) доходы вокруг даты today. */
+/**
+ * Ожидаемые (ещё не подтверждённые) доходы вокруг даты today.
+ * «Задерживается» сдвигает позднюю дату выплаты (3.25).
+ */
 export function expectedIncomes(
   regular: RegularIncome[],
   oneOff: OneOffIncome[],
   receipts: IncomeReceipt[],
   today: ISODate,
+  delays: IncomeDelay[] = [],
 ): IncomeOccurrence[] {
   const received = new Set(receipts.map((r) => r.occurrenceKey));
   const fromMonth = addMonths(monthOf(today), -1);
@@ -87,7 +91,33 @@ export function expectedIncomes(
     ...regular.flatMap((i) => regularIncomeOccurrences(i, fromMonth, toMonth)),
     ...oneOff.map(oneOffOccurrence),
   ];
-  return all.filter((o) => !received.has(o.key));
+  return all
+    .filter((o) => !received.has(o.key))
+    .map((o) => {
+      const until = delays.find((d) => d.occurrenceKey === o.key)?.until;
+      return until && until > o.late ? { ...o, late: until } : o;
+    });
+}
+
+/**
+ * Ожидаемые доходы, которые ещё могут прийти: без выплат до начала пользования (они уже
+ * в остатке, 3.25) и без пропущенных выплат старше последней подтверждённой того же дохода.
+ */
+export function openIncomes(data: FinanceData, today: ISODate): IncomeOccurrence[] {
+  const lastReceived = new Map<string, ISODate>();
+  for (const r of data.receipts) {
+    if (r.occurrenceKey.startsWith('oneoff:')) continue;
+    const incomeId = r.occurrenceKey.split(':')[0];
+    const prev = lastReceived.get(incomeId);
+    if (!prev || r.date > prev) lastReceived.set(incomeId, r.date);
+  }
+  return expectedIncomes(data.regularIncomes, data.oneOffIncomes, data.receipts, today, data.incomeDelays)
+    .filter((o) => o.late >= data.startedOn)
+    .filter((o) => {
+      if (o.key.startsWith('oneoff:')) return true;
+      const last = lastReceived.get(o.key.split(':')[0]);
+      return !last || o.late > last;
+    });
 }
 
 export function paymentAmountFor(payment: FixedPayment, month: ISOMonth): Kopecks | null {

@@ -1,9 +1,11 @@
 // Действия раздела «Профиль»: счета, доходы и платежи, настройки, категории, анкета.
 // Чистые функции «данные → новые данные», без интерфейса.
 import { CATEGORY_COLORS, DEFAULT_CATEGORIES, FOOD_ID, MAX_CATEGORIES, OTHER_ID } from './categories';
+import { currentBalance } from './balance';
 import type { ISODate, ISOMonth } from './dates';
 import type { Kopecks } from './money';
-import { rub } from './money';
+import { rub, sub, sum } from './money';
+import { paymentOccurrences } from './schedule';
 import type {
   Account,
   AccountKind,
@@ -62,8 +64,21 @@ export function setAccountBalance(
   now: number,
   paidOnAsOf: string[] = [],
 ): FinanceData {
+  // Денег меньше, чем думал Флюми, — запоминаем расхождение: оно сначала уменьшает
+  // «сэкономлено», чтобы потраченное не предлагалось перевести в накопления (3.25).
+  const account = data.accounts.find((a) => a.id === accountId);
+  let balanceGaps = data.balanceGaps;
+  if (account?.kind === 'main' && asOf >= account.asOf) {
+    const alreadyPaid = new Set(account.asOf === asOf ? (account.paidOnAsOf ?? []) : []);
+    const paidNow = paymentOccurrences(data.payments, asOf, asOf).filter(
+      (p) => paidOnAsOf.includes(p.key) && !alreadyPaid.has(p.key),
+    );
+    const expected = sub(currentBalance(account, data, asOf), sum(paidNow.map((p) => p.amount)));
+    if (amount < expected) balanceGaps = [...(balanceGaps ?? []), { date: asOf, amount: sub(expected, amount) }];
+  }
   return {
     ...data,
+    ...(balanceGaps ? { balanceGaps } : {}),
     accounts: data.accounts.map((a) =>
       a.id === accountId ? { ...a, amount, asOf, asOfTs: now, paidOnAsOf } : a,
     ),

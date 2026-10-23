@@ -51,6 +51,20 @@ export interface IncomeReceipt {
   amount: Kopecks;
   date: ISODate;
   createdAt: number;
+  /** Деньги уже вошли в записанный остаток: второй раз не прибавляются, но период начинается (3.25). */
+  inBalance?: boolean;
+}
+
+/** «Задерживается»: ожидаемый доход теперь ждём к этой дате (3.25). */
+export interface IncomeDelay {
+  occurrenceKey: string;
+  until: ISODate;
+}
+
+/** Обновление остатка показало, что денег меньше, чем думал Флюми (3.25). */
+export interface BalanceGap {
+  date: ISODate;
+  amount: Kopecks;
 }
 
 export interface PaymentAmount {
@@ -134,6 +148,8 @@ export interface DayClosure {
   limit: Kopecks;
   /** Сэкономлено в режиме «на счёт» (в режиме «на другие дни» 0). */
   saved: Kopecks;
+  /** Трат не записано, и человек не помнит, тратил ли: в «сэкономлено» ничего не идёт (3.25). */
+  unsure?: boolean;
 }
 
 /** Откладывание, зафиксированное в начале периода (вариант А, SPEC 3.1). */
@@ -144,6 +160,8 @@ export interface SavePlan {
   amount: Kopecks;
   /** День расчёта: в этот день сумма ещё следует за исправлениями данных. */
   createdOn: ISODate;
+  /** Непереведённое откладывание прошлого периода, перенесённое в этот (3.25). */
+  carried?: Kopecks;
   /** Отпечаток доходов, платежей и транспорта: если они изменились, сумма считается заново. */
   basis: string;
 }
@@ -177,4 +195,8 @@ export interface FinanceData {
   closures: DayClosure[];
   savePlan?: SavePlan;
   fixedLimit?: FixedLimit;
+  /** Последний обычный лимит дня: держится в день ожидания дохода (3.25). */
+  lastLimit?: { date: ISODate; limit: Kopecks };
+  incomeDelays?: IncomeDelay[];
+  balanceGaps?: BalanceGap[];
 }

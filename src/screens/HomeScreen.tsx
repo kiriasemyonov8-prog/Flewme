@@ -1,8 +1,10 @@
 import { CalendarDays, MessageCircle, Wallet } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { characterBackground, Robot } from '../assets/character';
-import { spentTodayMain } from '../core/balance';
+import { delayIncome, dropOneOff, incomePrompt } from '../core/actions';
+import { spentTodayMain, transportOverMonth } from '../core/balance';
 import { addDays, diffDays, type ISODate } from '../core/dates';
+import type { IncomeOccurrence } from '../core/schedule';
 import { closedStreak, isBalanceStale, isClosed, unclosedDays } from '../core/days';
 import { formatDayMonth, formatRubWhole, formatRubWholeUp, pluralDays } from '../core/format';
 import { remainingToday } from '../core/limit';
@@ -16,13 +18,24 @@ import { useVoiceInput } from '../state/useVoiceInput';
 import { DemoBadge } from '../ui/DemoBadge';
 import { CloseDaySheet } from './home/CloseDaySheet';
 import { ExpenseSheet } from './home/ExpenseSheet';
+import { DelaySheet } from './home/DelaySheet';
 import { IncomeSheet } from './home/IncomeSheet';
 
 type SheetState =
   | null
   | { kind: 'expense'; date: ISODate; thenClose?: boolean }
-  | { kind: 'income' }
+  | { kind: 'income'; initial?: IncomeOccurrence }
+  | { kind: 'delay'; income: IncomeOccurrence }
   | { kind: 'close'; date: ISODate };
+
+/** Мягкое напоминание на главной: одно за раз, «Позже» скрывает его до следующего открытия. */
+interface Reminder {
+  key: string;
+  text: string;
+  action: string;
+  run: () => void;
+  more?: { label: string; run: () => void }[];
+}
 
 /** Высота Флюми, когда он уменьшается в иконку чата. */
 const ROBOT_ICON = 64;
@@ -117,7 +130,31 @@ export function HomeScreen({
   const now = new Date();
   const nowTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
   const eveningDue = data.settings.reminderEnabled && !todayClosed && nowTime >= data.settings.reminderTime;
-  const reminder: { key: string; text: string; action: string; run: () => void } | null =
+  // Доход сегодня ждём или он запаздывает — спросить о нём важнее всего: от него зависит лимит (3.25).
+  const prompt = incomePrompt(data, today);
+  const incomeReminder: Reminder | null = prompt
+    ? {
+        key: `income-${prompt.income.key}-${today}`,
+        text:
+          prompt.kind === 'overdue'
+            ? `«${prompt.income.name}» ждали к ${formatDayMonth(prompt.income.late)}. Пришла?`
+            : prompt.income.early === prompt.income.late
+              ? `Сегодня ждём «${prompt.income.name}». Когда придёт, нажмите «Пришла».`
+              : `Ждём «${prompt.income.name}» до ${formatDayMonth(prompt.income.late)}. Когда придёт, нажмите «Пришла».`,
+        action: 'Пришла',
+        run: () => setSheet({ kind: 'income', initial: prompt.income }),
+        more:
+          prompt.kind !== 'overdue'
+            ? undefined
+            : prompt.oneOff
+              ? [
+                  { label: 'Перенести', run: () => setSheet({ kind: 'delay', income: prompt.income }) },
+                  { label: 'Не придёт', run: () => store.update((d) => dropOneOff(d, prompt.income.key)) },
+                ]
+              : [{ label: 'Задерживается', run: () => setSheet({ kind: 'delay', income: prompt.income }) }],
+      }
+    : null;
+  const reminder: Reminder | null = incomeReminder ?? (
     missed.length > 0
       ? {
           key: `missed-${missed[0]}`,
@@ -142,7 +179,7 @@ export function HomeScreen({
               action: 'Закрыть день',
               run: () => setSheet({ kind: 'close', date: today }),
             }
-          : null;
+          : null);
   const showReminder = reminder && !dismissed.includes(reminder.key);
 
   let mood = robotMood(spent, limit.status === 'ok' ? limit.dailyLimit : spent);
@@ -156,6 +193,8 @@ export function HomeScreen({
     phrase = `Трат пока нет. Можно до ${formatRubWhole(limit.dailyLimit)}.`;
   } else if (mood === 'joy') {
     phrase = 'Идём в рамках дня, всё по плану.';
+  } else if (transportOverMonth(data, today) > 0) {
+    phrase = 'Транспорт в этом месяце дороже, чем вы указали: лишнее идёт из лимита.';
   } else {
     phrase = 'Бывает. Завтра чуть строже, и всё выровняется.';
   }
@@ -175,6 +214,11 @@ export function HomeScreen({
             <button type="button" className="btn btn-primary" onClick={reminder.run}>
               {reminder.action}
             </button>
+            {reminder.more?.map((m) => (
+              <button key={m.label} type="button" className="btn btn-secondary" onClick={m.run}>
+                {m.label}
+              </button>
+            ))}
             <button type="button" className="link-btn" onClick={() => setDismissed((d) => [...d, reminder.key])}>
               Позже
             </button>
@@ -316,13 +360,25 @@ export function HomeScreen({
         <IncomeSheet
           data={data}
           today={today}
+          initial={sheet.initial}
           onClose={() => setSheet(null)}
-          onConfirm={(key, amount, date) => {
-            store.confirmIncome(key, amount, date);
+          onConfirm={(key, amount, date, inBalance) => {
+            store.confirmIncome(key, amount, date, inBalance);
             setSheet(null);
           }}
-          onOneOff={(name, amount, date) => {
-            store.addReceivedOneOff(name, amount, date);
+          onOneOff={(name, amount, date, inBalance) => {
+            store.addReceivedOneOff(name, amount, date, inBalance);
+            setSheet(null);
+          }}
+        />
+      )}
+      {sheet?.kind === 'delay' && (
+        <DelaySheet
+          income={sheet.income}
+          today={today}
+          onClose={() => setSheet(null)}
+          onSave={(until) => {
+            store.update((d) => delayIncome(d, sheet.income.key, until));
             setSheet(null);
           }}
         />
@@ -334,8 +390,8 @@ export function HomeScreen({
           today={today}
           onClose={() => setSheet(null)}
           onAddExpense={() => setSheet({ kind: 'expense', date: sheet.date, thenClose: true })}
-          onConfirm={() => {
-            store.closeDay(sheet.date);
+          onConfirm={(unsure) => {
+            store.closeDay(sheet.date, unsure);
             setSheet(null);
           }}
         />

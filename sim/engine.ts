@@ -2,7 +2,17 @@
 // Приложение знает только внесённое, поэтому сравнение «реальность ↔ приложение» показывает,
 // где расчёт ошибается и где поведение человека ломает логику.
 // Используется только расчётное ядро (src/core) — так же, как его использует интерфейс.
-import { addExpense, addReceivedOneOff, closeDayAction, confirmIncome, incomesToConfirm } from '../src/core/actions';
+import {
+  addExpense,
+  addReceivedOneOff,
+  closeDayAction,
+  confirmIncome,
+  delayIncome,
+  incomePrompt,
+  incomesToConfirm,
+  matchingOneOff,
+  mayBeInBalance,
+} from '../src/core/actions';
 import { currentBalance, spentTodayMain } from '../src/core/balance';
 import { addDays, diffDays, type ISODate } from '../src/core/dates';
 import { closedStreak, isBalanceStale, unclosedDays } from '../src/core/days';
@@ -150,8 +160,12 @@ export function simulate(p: Persona, d0: ISODate, days: number) {
 
   const persist = (res: LimitResult) => {
     if (res.status !== 'ok') return;
-    data = { ...data, savePlan: res.savePlan, fixedLimit: res.fixedLimit ?? data.fixedLimit };
+    data = { ...data, savePlan: res.savePlan, fixedLimit: res.fixedLimit ?? data.fixedLimit, lastLimit: res.lastLimit };
   };
+  // Реальные траты с основного счёта по дням: по ним человек честно отвечает «ничего не тратили?».
+  const realByDay = new Map<ISODate, number>();
+  // День, когда остаток записан уже с пришедшими деньгами (для вопроса «уже в остатке?»).
+  let balanceDay: ISODate | null = null;
 
   for (let day = 0; day < days; day++) {
     const date = addDays(d0, day);
@@ -176,6 +190,25 @@ export function simulate(p: Persona, d0: ISODate, days: number) {
     // ——— Открыл приложение утром ———
     let morning: LimitResult | null = null;
     if (opened) {
+      /**
+       * Обновление остатка. Если ожидаемый доход уже наступил, Флюми спрашивает «уже пришла
+       * и есть в этой сумме?» (3.25) — человек честно отмечает пришедшие деньги.
+       */
+      const updateBalance = (note: string) => {
+        const paidToday = paymentOccurrences(data.payments, date, date).map((x) => x.key);
+        data = setAccountBalance(data, 'main', trueMain, date, ts(day, 8), p.habits.marksPaid ? paidToday : []);
+        lastBalanceUpdate = day;
+        balanceDay = date;
+        notes.push(note);
+        const due = incomesToConfirm(data, date).find((o) => o.early <= date);
+        const arrived = pendingIncomes.find((x) => x.inc.kind === 'regular');
+        if (due && arrived && !due.key.startsWith('oneoff:')) {
+          data = confirmIncome(data, due.key, rub(arrived.inc.rubles), date, `rb${seq}`, ts(day, 8) + 1, true);
+          pendingIncomes.splice(pendingIncomes.indexOf(arrived), 1);
+          notes.push(`отметил «${arrived.inc.name} уже в остатке»`);
+        }
+      };
+      if (p.habits.confirm === 'balanceThenConfirm' && pendingIncomes.length) updateBalance('обновил остаток до «Пришла»');
       // Подтверждение доходов по привычке
       const toConfirm = pendingIncomes.filter((x) => {
         const age = diffDays(x.date, date);
@@ -183,33 +216,37 @@ export function simulate(p: Persona, d0: ISODate, days: number) {
         if (p.habits.confirm === 'late') return age >= 3;
         return true;
       });
-      if (p.habits.confirm === 'balanceThenConfirm' && toConfirm.length) {
-        data = setAccountBalance(data, 'main', trueMain, date, ts(day, 8));
-        lastBalanceUpdate = day;
-        notes.push('обновил остаток до «Пришла»');
-      }
       for (const x of toConfirm) {
+        // «Уже в остатке?» спрашивается, если остаток записан в день дохода (после его прихода).
+        const inBalance = mayBeInBalance(data, x.date) && balanceDay === x.date;
         if (x.inc.kind === 'oneoff') {
-          data = addReceivedOneOff(data, x.inc.name, rub(x.inc.rubles), x.date, `oo${seq}`, ts(day, 8));
+          // «Это доход, который вы ждали?» — человек узнаёт ожидаемый разовый.
+          const match = matchingOneOff(data, x.date, date);
+          if (match) {
+            data = confirmIncome(data, match.key, rub(x.inc.rubles), x.date, `rc${seq}`, ts(day, 8), inBalance);
+            notes.push(`узнал ожидаемый «${match.name}»`);
+          } else {
+            data = addReceivedOneOff(data, x.inc.name, rub(x.inc.rubles), x.date, `oo${seq}`, ts(day, 8), inBalance);
+          }
         } else {
           const expected = incomesToConfirm(data, date);
           const key = expected.find((o) => o.early <= addDays(x.date, 10))?.key ?? expected[0]?.key;
           if (!key) {
             flag(day, date, 'Нечего подтверждать', `пришёл доход «${x.inc.name}», но в приложении нет подходящего ожидаемого дохода — «Пришла» нажать не на что`);
-            data = addReceivedOneOff(data, x.inc.name, rub(x.inc.rubles), x.date, `oo${seq}`, ts(day, 8));
+            data = addReceivedOneOff(data, x.inc.name, rub(x.inc.rubles), x.date, `oo${seq}`, ts(day, 8), inBalance);
           } else {
-            data = confirmIncome(data, key, rub(x.inc.rubles), x.date, `rc${seq}`, ts(day, 8));
+            data = confirmIncome(data, key, rub(x.inc.rubles), x.date, `rc${seq}`, ts(day, 8), inBalance);
           }
         }
-        notes.push(`«Пришла» ${x.inc.name}`);
+        notes.push(`«Пришла» ${x.inc.name}${inBalance ? ' (уже в остатке)' : ''}`);
         pendingIncomes.splice(pendingIncomes.indexOf(x), 1);
       }
-      // Обновление остатка
-      if (p.habits.balanceEvery > 0 && day - lastBalanceUpdate >= p.habits.balanceEvery) {
-        const paidToday = paymentOccurrences(data.payments, date, date).map((x) => x.key);
-        data = setAccountBalance(data, 'main', trueMain, date, ts(day, 8), p.habits.marksPaid ? paidToday : []);
-        lastBalanceUpdate = day;
-        notes.push('обновил остаток');
+      if (p.habits.balanceEvery > 0 && day - lastBalanceUpdate >= p.habits.balanceEvery) updateBalance('обновил остаток');
+      // Просроченный ожидаемый доход, а денег нет: «Задерживается» / «Перенести» на неделю (3.25).
+      const prompt = incomePrompt(data, date);
+      if (prompt?.kind === 'overdue' && !pendingIncomes.length) {
+        data = delayIncome(data, prompt.income.key, addDays(date, 7));
+        notes.push(`«${prompt.income.name}» не пришёл — отметил «Задерживается» до ${addDays(date, 7).slice(5)}`);
       }
       // Записывает вчерашние забытые траты
       for (const e of lateExpenses.splice(0)) {
@@ -242,6 +279,7 @@ export function simulate(p: Persona, d0: ISODate, days: number) {
       if (account === 'main') {
         trueMain = kop(trueMain - amount);
         realSpent += amount;
+        realByDay.set(date, (realByDay.get(date) ?? 0) + amount);
       } else trueOther[account] = (trueOther[account] ?? 0) - s.rubles;
       const recordP = s.record ?? p.habits.record;
       if (!away && r.chance(recordP)) {
@@ -270,8 +308,14 @@ export function simulate(p: Persona, d0: ISODate, days: number) {
     }
     let closed = false;
     if (opened && r.chance(p.habits.close)) {
-      for (const d of unclosedDays(data, data.startedOn, date, 7).reverse()) data = closeDayAction(data, d);
-      data = closeDayAction(data, date);
+      // Пустой день: «Ничего не тратили?» — человек честно отвечает «Не помню», если тратил (3.25).
+      const close = (d: ISODate) => {
+        const recorded = data.expenses.some((x) => x.date === d && x.accountId === 'main');
+        const unsure = !recorded && (realByDay.get(d) ?? 0) > 0;
+        data = closeDayAction(data, d, unsure);
+      };
+      for (const d of unclosedDays(data, data.startedOn, date, 7).reverse()) close(d);
+      close(date);
       closed = true;
     }
 

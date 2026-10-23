@@ -1,9 +1,9 @@
 // Дневной лимит (SPEC, раздел 8) и распределение остатка (раздел 9).
 import { startOfDayBalance } from './balance';
 import { CONFIG } from './config';
-import { diffDays, type ISODate } from './dates';
-import { ZERO, divFloor, max, min, mulInt, percentOf, sub, sum, type Kopecks } from './money';
-import { expectedIncomes, paymentOccurrences, type IncomeOccurrence, type PaymentOccurrence } from './schedule';
+import { addDays, diffDays, type ISODate } from './dates';
+import { ZERO, add, divFloor, max, min, mulInt, percentOf, sub, sum, type Kopecks } from './money';
+import { openIncomes, paymentOccurrences, type IncomeOccurrence, type PaymentOccurrence } from './schedule';
 import type { FinanceData, FixedLimit, SavePlan } from './types';
 
 export type MissingData = 'mainBalance' | 'income';
@@ -31,9 +31,12 @@ export interface LimitOk {
   dailyLimit: Kopecks;
   /** R ≤ 0: свободных денег до дохода нет. */
   noFreeMoney: boolean;
+  /** День ожидания дохода: доход наступил, но «Пришла» ещё не нажата (3.25). */
+  waiting: boolean;
   /** Обновлённые записи, которые нужно сохранить. */
   savePlan: SavePlan;
   fixedLimit?: FixedLimit;
+  lastLimit?: { date: ISODate; limit: Kopecks };
 }
 
 export interface LimitNoData {
@@ -55,21 +58,71 @@ export function currentPeriod(data: FinanceData, fallbackStart: ISODate): { key:
  * Горизонт — ближайший ожидаемый регулярный доход (вариант А, SPEC 3.11). Разовый доход
  * не сокращает число дней: его деньги добавляются, когда он подтверждён «Пришла».
  * Только если регулярных доходов нет совсем, горизонтом служит ближайший разовый.
+ * Не пришедший в срок доход ещё неделю остаётся горизонтом (3.25): Флюми спрашивает о нём.
  */
 export function findHorizon(data: FinanceData, today: ISODate): IncomeOccurrence | null {
-  const upcoming = expectedIncomes(data.regularIncomes, data.oneOffIncomes, data.receipts, today)
-    .filter((o) => o.late >= today)
+  const overdueFrom = addDays(today, -CONFIG.overdueIncomeDays);
+  const upcoming = openIncomes(data, today)
+    .filter((o) => o.late >= overdueFrom)
     .sort((a, b) => a.late.localeCompare(b.late));
   const regular = upcoming.filter((o) => !o.key.startsWith('oneoff:'));
   return (data.regularIncomes.length > 0 ? regular[0] : upcoming[0]) ?? null;
 }
 
-function transferredSince(data: FinanceData, purpose: 'setAside' | 'saved', since: ISODate, today: ISODate): Kopecks {
+/** Ближайший доход после ожидаемого: до него должны дотянуть деньги, если ожидаемый уже в остатке. */
+function incomeAfter(data: FinanceData, income: IncomeOccurrence, today: ISODate): IncomeOccurrence | null {
+  const next = openIncomes(data, today)
+    .filter((o) => o.late > income.late && o.key !== income.key)
+    .sort((a, b) => a.late.localeCompare(b.late));
+  const regular = next.filter((o) => !o.key.startsWith('oneoff:'));
+  return (data.regularIncomes.length > 0 ? regular[0] : next[0]) ?? null;
+}
+
+function transferredSince(
+  data: FinanceData,
+  purpose: 'setAside' | 'saved',
+  since: ISODate,
+  today: ISODate,
+): Kopecks {
   return sum(
     data.transfers
       .filter((t) => t.purpose === purpose && t.date >= since && t.date <= today)
       .map((t) => t.amount),
   );
+}
+
+/**
+ * Сколько отложенного прошлого периода переносится в новый (3.25): то, что накануне нового
+ * дохода ещё лежало отложенным на основном счёте. Если деньги к тому дню кончились,
+ * отложенное фактически потрачено и не переносится.
+ */
+function carryOver(data: FinanceData, periodStart: ISODate): Kopecks {
+  const before = addDays(periodStart, -1);
+  const old = computeLimit({ ...data, receipts: data.receipts.filter((r) => r.date < periodStart) }, before);
+  return old.status === 'ok' ? old.setAside : ZERO;
+}
+
+/**
+ * «Сэкономлено» в режиме «на счёт» по порядку дат: закрытые дни добавляют, переводы в накопления
+ * и расхождения при обновлении остатка (3.25) убавляют. Потраченное не предлагается перевести.
+ */
+function savedLeft(data: FinanceData, since: ISODate, today: ISODate): Kopecks {
+  // В один день: сначала расхождение (оно про прошлые дни), потом перевод, потом закрытие дня.
+  const events: [ISODate, number, Kopecks][] = [
+    ...(data.balanceGaps ?? [])
+      .filter((g) => g.date >= since && g.date <= today)
+      .map((g): [ISODate, number, Kopecks] => [g.date, 0, -g.amount as Kopecks]),
+    ...data.transfers
+      .filter((t) => t.purpose === 'saved' && t.date >= since && t.date <= today)
+      .map((t): [ISODate, number, Kopecks] => [t.date, 1, -t.amount as Kopecks]),
+    ...data.closures
+      .filter((c) => c.date >= since && c.date < today)
+      .map((c): [ISODate, number, Kopecks] => [c.date, 2, c.saved]),
+  ];
+  events.sort((a, b) => a[0].localeCompare(b[0]) || a[1] - b[1]);
+  let left = ZERO;
+  for (const [, , delta] of events) left = max(ZERO, add(left, delta));
+  return left;
 }
 
 /**
@@ -122,39 +175,49 @@ export function computeLimit(data: FinanceData, today: ISODate): LimitResult {
     if (t.fromAccountId === main.id) netIntoMain -= t.amount;
   }
   const planBase = sub(base, netIntoMain as Kopecks);
+  const samePeriod = kept?.periodKey === period.key;
+  // Непереведённое откладывание прошлого периода переносится целиком (3.25); при проценте 0 — нет.
+  const carried = percent === 0 ? ZERO : samePeriod ? (kept!.carried ?? ZERO) : kept ? carryOver(data, period.start) : ZERO;
   const plan: SavePlan =
-    kept &&
-    kept.periodKey === period.key &&
-    kept.percent === percent &&
-    kept.basis === basis &&
-    kept.createdOn !== today
+    kept && samePeriod && kept.percent === percent && kept.basis === basis && kept.createdOn !== today
       ? kept
       : {
           periodKey: period.key,
           periodStart: planStart,
           percent,
-          amount: planBase > 0 ? percentOf(planBase, percent) : ZERO,
-          createdOn: kept?.periodKey === period.key && kept.basis === basis && kept.percent === percent ? kept.createdOn : today,
+          amount: add(carried, planBase > carried ? percentOf(sub(planBase, carried), percent) : ZERO),
+          createdOn: samePeriod && kept!.basis === basis && kept!.percent === percent ? kept!.createdOn : today,
           basis,
+          ...(carried > 0 ? { carried } : {}),
         };
   const setAsideLeft = max(ZERO, sub(plan.amount, transferredSince(data, 'setAside', plan.periodStart, today)));
   const setAside = min(setAsideLeft, max(ZERO, base));
   const free = sub(base, setAside);
 
-  const savedTotal = sum(
-    data.closures.filter((c) => c.date >= plan.periodStart && c.date < today).map((c) => c.saved),
-  );
-  const saved = max(ZERO, sub(savedTotal, transferredSince(data, 'saved', plan.periodStart, today)));
+  const saved = savedLeft(data, plan.periodStart, today);
+
+  // День ожидания дохода (3.25): доход наступил, но не подтверждён. Деньги могли уже прийти
+  // и войти в остаток, поэтому лимит остаётся последним обычным (не больше свободного).
+  const waiting = income.early <= today;
+  const waitingLimit = (available: Kopecks): Kopecks => {
+    const last = data.lastLimit;
+    if (last && last.date <= today && diffDays(last.date, today) <= CONFIG.lastLimitMaxAgeDays) {
+      return min(last.limit, max(ZERO, available));
+    }
+    const next = incomeAfter(data, income, today);
+    const spread = next ? Math.max(1, diffDays(today, next.late)) : days;
+    return available > 0 ? divFloor(available, spread) : ZERO;
+  };
 
   let dailyLimit: Kopecks;
   let fixedLimit: FixedLimit | undefined;
   if (data.settings.leftoverMode === 'otherDays') {
-    dailyLimit = free > 0 ? divFloor(free, days) : ZERO;
+    dailyLimit = waiting ? waitingLimit(free) : free > 0 ? divFloor(free, days) : ZERO;
   } else {
     // «На счёт»: лимит фиксирован на период и может только снижаться.
     // После «Взять из накоплений» приложение сбрасывает fixedLimit, чтобы деньги распределились по дням.
     const available = sub(free, saved);
-    const candidate = available > 0 ? divFloor(available, days) : ZERO;
+    const candidate = waiting ? waitingLimit(available) : available > 0 ? divFloor(available, days) : ZERO;
     const prev = data.fixedLimit?.periodKey === period.key ? data.fixedLimit.limit : null;
     dailyLimit = prev === null ? candidate : min(prev, candidate);
     fixedLimit = { periodKey: period.key, limit: dailyLimit };
@@ -176,7 +239,9 @@ export function computeLimit(data: FinanceData, today: ISODate): LimitResult {
     saved,
     dailyLimit,
     noFreeMoney: free <= 0,
+    waiting,
     savePlan: plan,
     fixedLimit,
+    lastLimit: waiting ? data.lastLimit : { date: today, limit: dailyLimit },
   };
 }

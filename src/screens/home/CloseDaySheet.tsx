@@ -17,13 +17,36 @@ export function CloseDaySheet({
   date: ISODate;
   today: ISODate;
   onAddExpense: () => void;
-  onConfirm: () => void;
+  /** unsure — трат не записано, и человек не помнит, тратил ли (3.25). */
+  onConfirm: (unsure: boolean) => void;
   onClose: () => void;
 }) {
   const main = mainAccount(data);
   const spent = spentOnDayMain(data, date);
   const items = data.expenses.filter((x) => x.date === date && x.accountId === main?.id);
   const dayName = date === today ? 'сегодня' : formatDayMonth(date);
+
+  // Пустой день: «ничего не тратили» и «забыли записать» — не одно и то же (3.25).
+  if (items.length === 0) {
+    return (
+      <Sheet title="Закрыть день" onClose={onClose}>
+        <p className="close-question">
+          {date === today ? 'Сегодня' : formatDayMonth(date)} трат не записано. Ничего не тратили?
+        </p>
+        <div className="btn-row">
+          <button type="button" className="btn btn-secondary" onClick={onAddExpense}>
+            Добавить трату
+          </button>
+          <button type="button" className="btn btn-primary" onClick={() => onConfirm(false)}>
+            Да, ничего
+          </button>
+        </div>
+        <button type="button" className="link-btn" onClick={() => onConfirm(true)}>
+          Не помню
+        </button>
+      </Sheet>
+    );
+  }
 
   return (
     <Sheet title="Закрыть день" onClose={onClose}>
@@ -44,7 +67,7 @@ export function CloseDaySheet({
         <button type="button" className="btn btn-secondary" onClick={onAddExpense}>
           Добавить трату
         </button>
-        <button type="button" className="btn btn-primary" onClick={onConfirm}>
+        <button type="button" className="btn btn-primary" onClick={() => onConfirm(false)}>
           Верно
         </button>
       </div>

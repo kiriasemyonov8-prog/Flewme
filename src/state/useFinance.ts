@@ -16,9 +16,9 @@ export interface FinanceStore {
   today: ISODate;
   limit: LimitResult;
   addExpense: (e: actions.ExpenseInput) => void;
-  confirmIncome: (occurrenceKey: string, amount: Kopecks, date: ISODate) => void;
-  addReceivedOneOff: (name: string, amount: Kopecks, date: ISODate) => void;
-  closeDay: (date: ISODate) => void;
+  confirmIncome: (occurrenceKey: string, amount: Kopecks, date: ISODate, inBalance?: boolean) => void;
+  addReceivedOneOff: (name: string, amount: Kopecks, date: ISODate, inBalance?: boolean) => void;
+  closeDay: (date: ISODate, unsure?: boolean) => void;
   /** Применить чистое действие из core (профиль, настройки и т. п.). */
   update: (action: (d: FinanceData) => FinanceData) => void;
   /** Заменить все данные (сброс к демо, свои данные, восстановление из файла). */
@@ -34,25 +34,32 @@ export function useFinance(): FinanceStore {
 
   // Откладывание и лимит «на счёт» фиксируются на период: сохраняем, когда ядро их создало заново.
   // Сравниваем по содержимому: в день расчёта ядро каждый раз отдаёт новый объект.
+  // Последний обычный лимит тоже запоминаем: он держится в день ожидания дохода (3.25).
   useEffect(() => {
     if (limit.status !== 'ok') return;
     const planChanged = JSON.stringify(data.savePlan) !== JSON.stringify(limit.savePlan);
     const fixedChanged = limit.fixedLimit && data.fixedLimit?.limit !== limit.fixedLimit.limit;
-    if (planChanged || fixedChanged) {
-      setData((d) => ({ ...d, savePlan: limit.savePlan, fixedLimit: limit.fixedLimit ?? d.fixedLimit }));
+    const lastChanged = JSON.stringify(data.lastLimit) !== JSON.stringify(limit.lastLimit);
+    if (planChanged || fixedChanged || lastChanged) {
+      setData((d) => ({
+        ...d,
+        savePlan: limit.savePlan,
+        fixedLimit: limit.fixedLimit ?? d.fixedLimit,
+        lastLimit: limit.lastLimit,
+      }));
     }
-  }, [limit, data.savePlan, data.fixedLimit]);
+  }, [limit, data.savePlan, data.fixedLimit, data.lastLimit]);
 
   return {
     data,
     today,
     limit,
     addExpense: (e) => setData((d) => actions.addExpense(d, e, newId(), Date.now())),
-    confirmIncome: (key, amount, date) =>
-      setData((d) => actions.confirmIncome(d, key, amount, date, newId(), Date.now())),
-    addReceivedOneOff: (name, amount, date) =>
-      setData((d) => actions.addReceivedOneOff(d, name, amount, date, newId(), Date.now())),
-    closeDay: (date) => setData((d) => actions.closeDayAction(d, date)),
+    confirmIncome: (key, amount, date, inBalance) =>
+      setData((d) => actions.confirmIncome(d, key, amount, date, newId(), Date.now(), inBalance)),
+    addReceivedOneOff: (name, amount, date, inBalance) =>
+      setData((d) => actions.addReceivedOneOff(d, name, amount, date, newId(), Date.now(), inBalance)),
+    closeDay: (date, unsure) => setData((d) => actions.closeDayAction(d, date, unsure)),
     update: (action) => setData(action),
     replace: (next) => setData(next),
   };
