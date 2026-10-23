@@ -1,6 +1,6 @@
 // Общие элементы ввода: строки разделов, переключатели, выбор дней месяца, сумма с клавиатурой.
-import { ChevronRight } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { ChevronDown, ChevronRight } from 'lucide-react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { AmountDisplay, Keypad } from './Keypad';
 
 /** Строка раздела, по нажатию открывает редактирование. */
@@ -17,12 +17,49 @@ export function RowButton({ title, sub, value, onClick }: { title: string; sub?:
   );
 }
 
-export function Section({ title, children, note }: { title: string; children: ReactNode; note?: string }) {
+/**
+ * Раскрывающийся раздел настроек: заголовок с кратким итогом; по нажатию содержимое
+ * плавно раскрывается (высота анимируется через grid-template-rows).
+ */
+export function Collapsible({
+  title,
+  summary,
+  open,
+  onToggle,
+  children,
+  note,
+}: {
+  title: string;
+  summary: string;
+  open: boolean;
+  onToggle: () => void;
+  children: ReactNode;
+  note?: string;
+}) {
+  const ref = useRef<HTMLElement>(null);
+
+  // Раскрытый раздел плавно прокручивается в поле зрения.
+  useEffect(() => {
+    if (!open) return;
+    const t = window.setTimeout(() => ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 120);
+    return () => window.clearTimeout(t);
+  }, [open]);
+
   return (
-    <section className="section">
-      <h2 className="section-title">{title}</h2>
-      <div className="card section-card">{children}</div>
-      {note && <p className="hint section-note">{note}</p>}
+    <section ref={ref} className={`card collapsible${open ? ' is-open' : ''}`}>
+      <button type="button" className="collapsible-head" aria-expanded={open} onClick={onToggle}>
+        <span className="row-main">
+          <span className="collapsible-title">{title}</span>
+          <span className="row-sub">{summary}</span>
+        </span>
+        <ChevronDown size={20} className="collapsible-chevron" aria-hidden />
+      </button>
+      <div className="collapsible-body" inert={!open}>
+        <div className="collapsible-inner">
+          {children}
+          {note && <p className="hint section-note">{note}</p>}
+        </div>
+      </div>
     </section>
   );
 }

@@ -1,4 +1,4 @@
-import { Download, Minus, Plus, Upload } from 'lucide-react';
+﻿import { Download, Minus, Plus, Upload } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { exportBackup, importBackup, type ImportError } from '../core/backup';
 import { demoData } from '../core/demo';
@@ -9,7 +9,7 @@ import { monthOf } from '../core/dates';
 import type { Account, AccountKind, FinanceData, RegularIncome } from '../core/types';
 import { newId, type FinanceStore } from '../state/useFinance';
 import { ConfirmSheet } from '../ui/ConfirmSheet';
-import { RowButton, Section, Segmented, Toggle } from '../ui/Form';
+import { Collapsible, RowButton, Segmented, Toggle } from '../ui/Form';
 import { BalanceSheet } from './profile/BalanceSheet';
 import { PaymentSheet } from './profile/PaymentSheet';
 import { RegularIncomeSheet } from './profile/RegularIncomeSheet';
@@ -61,6 +61,30 @@ export function ProfileScreen({ store }: { store: FinanceStore }) {
   const expectedOneOff = data.oneOffIncomes.filter((i) => !confirmedOneOff.has(`oneoff:${i.id}`));
   const pct = data.settings.savePercent;
 
+  // Разделы-вкладки: открыт не больше одного, остальные свёрнуты до заголовка с итогом.
+  const [openSection, setOpenSection] = useState<string | null>(null);
+  const sec = (id: string, title: string, summary: string) => ({
+    title,
+    summary,
+    open: openSection === id,
+    onToggle: () => setOpenSection((cur) => (cur === id ? null : id)),
+  });
+  const accountsSummary = main
+    ? `основной ${formatRub(main.amount)} · всего счетов: ${data.accounts.length}`
+    : 'основной счёт не указан';
+  const moneySummary =
+    [
+      `доходов: ${data.regularIncomes.length}`,
+      `платежей: ${data.payments.length}`,
+      data.settings.transportMonthly > 0 ? 'транспорт' : '',
+    ]
+      .filter(Boolean)
+      .join(' · ');
+  const protectedNames = data.questionnaire.protectedCategoryIds
+    .map((id) => data.categories.find((c) => c.id === id)?.name)
+    .filter(Boolean);
+  const protectedSummary = protectedNames.length ? protectedNames.join(', ') : 'ничего не отмечено';
+
   function accountRow(kind: AccountKind, account: Account | undefined, title: string) {
     return (
       <RowButton
@@ -110,7 +134,7 @@ export function ProfileScreen({ store }: { store: FinanceStore }) {
     <>
       <h1 className="screen-title">Профиль</h1>
 
-      <Section title="Счета">
+      <Collapsible {...sec('accounts', 'Счета', accountsSummary)}>
         {accountRow('main', main, 'Основной счёт')}
         {savingsList.length === 0
           ? accountRow('savings', undefined, 'Накопления')
@@ -119,9 +143,9 @@ export function ProfileScreen({ store }: { store: FinanceStore }) {
         <button type="button" className="add-row" onClick={() => setOpen({ kind: 'balance', accountKind: 'other' })}>
           <Plus size={18} aria-hidden /> Другой счёт
         </button>
-      </Section>
+      </Collapsible>
 
-      <Section title="Доходы и платежи">
+      <Collapsible {...sec('money', 'Доходы и платежи', moneySummary)}>
         <div className="sub-title">Регулярные доходы</div>
         {data.regularIncomes.map((i) => (
           <RowButton key={i.id} title={i.name} sub={scheduleText(i)} value={amountText(i)} onClick={() => setOpen({ kind: 'income', income: i })} />
@@ -161,9 +185,15 @@ export function ProfileScreen({ store }: { store: FinanceStore }) {
           value={data.settings.transportMonthly > 0 ? `${formatRub(data.settings.transportMonthly)} в мес.` : 'нет'}
           onClick={() => setOpen({ kind: 'transport' })}
         />
-      </Section>
+      </Collapsible>
 
-      <Section title="Откладывание">
+      <Collapsible
+        {...sec(
+          'saving',
+          'Откладывание',
+          `${pct > 0 ? `${pct}% в накопления` : 'выключено'} · остаток ${data.settings.leftoverMode === 'otherDays' ? 'на другие дни' : 'на счёт'}`,
+        )}
+      >
         <Toggle
           label="Откладывать в накопления"
           checked={pct > 0}
@@ -216,9 +246,12 @@ export function ProfileScreen({ store }: { store: FinanceStore }) {
             ? 'Недотраченное растворяется в оставшихся днях: лимит завтра пересчитается.'
             : 'Лимит фиксирован до дохода, недотраченное копится как «сэкономлено».'}
         </p>
-      </Section>
+      </Collapsible>
 
-      <Section title="На чём не готов экономить" note="Флюми не будет советовать урезать эти категории. На дневной лимит анкета не влияет.">
+      <Collapsible
+        {...sec('questionnaire', 'На чём не готов экономить', protectedSummary)}
+        note="Флюми не будет советовать урезать эти категории. На дневной лимит анкета не влияет."
+      >
         <div className="chips">
           {data.categories.map((c) => {
             const on = data.questionnaire.protectedCategoryIds.includes(c.id);
@@ -243,9 +276,12 @@ export function ProfileScreen({ store }: { store: FinanceStore }) {
             );
           })}
         </div>
-      </Section>
+      </Collapsible>
 
-      <Section title="Категории" note={`Максимум 12, сейчас ${data.categories.length}.`}>
+      <Collapsible
+        {...sec('categories', 'Категории', `${data.categories.length} из 12`)}
+        note={`Максимум 12, сейчас ${data.categories.length}.`}
+      >
         {data.categories.map((c) =>
           c.locked ? (
             <div key={c.id} className="row-static">
@@ -276,9 +312,16 @@ export function ProfileScreen({ store }: { store: FinanceStore }) {
             <Plus size={18} aria-hidden /> Своя категория
           </button>
         )}
-      </Section>
+      </Collapsible>
 
-      <Section title="Напоминания" note="Пока напоминание показывается внутри приложения, когда вы его открываете.">
+      <Collapsible
+        {...sec(
+          'reminders',
+          'Напоминания',
+          data.settings.reminderEnabled ? `закрыть день в ${data.settings.reminderTime}` : 'выключены',
+        )}
+        note="Пока напоминание показывается внутри приложения, когда вы его открываете."
+      >
         <Toggle
           label="Напоминать закрыть день"
           checked={data.settings.reminderEnabled}
@@ -287,9 +330,9 @@ export function ProfileScreen({ store }: { store: FinanceStore }) {
         {data.settings.reminderEnabled && (
           <RowButton title="Время" value={data.settings.reminderTime} onClick={() => setOpen({ kind: 'time' })} />
         )}
-      </Section>
+      </Collapsible>
 
-      <Section title="Данные">
+      <Collapsible {...sec('data', 'Данные', data.isDemo ? 'демо · копия в файл, свои данные' : 'копия в файл, сброс к демо')}>
         <p className="hint data-warning">
           Данные хранятся только на этом устройстве. Если очистить данные браузера, они удалятся — поэтому иногда
           сохраняйте копию в файл.
@@ -345,7 +388,7 @@ export function ProfileScreen({ store }: { store: FinanceStore }) {
             Сбросить к демо
           </button>
         )}
-      </Section>
+      </Collapsible>
 
       {open?.kind === 'balance' && (
         <BalanceSheet
