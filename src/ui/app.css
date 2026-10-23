@@ -6,7 +6,7 @@
 
 .screen {
   min-height: 100dvh;
-  padding: max(16px, env(safe-area-inset-top)) 16px calc(var(--nav-height) + 24px + env(safe-area-inset-bottom));
+  padding: max(16px, env(safe-area-inset-top)) 16px calc(var(--nav-height) + var(--nav-gap) + env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -435,17 +435,6 @@
   color: #a3412f;
 }
 
-.rec-dot {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  margin-right: 4px;
-  border-radius: 50%;
-  background: #e0533d;
-  vertical-align: 1px;
-  animation: rec-pulse 1.2s ease-in-out infinite;
-}
-
 .mic-btn {
   position: relative;
   display: grid;
@@ -460,25 +449,30 @@
   cursor: pointer;
 }
 
+/* Запись включена: кнопка красная и спокойная — ждёт голос */
 .mic-btn.is-on {
   background: #e0533d;
   color: #fff;
+  transition: transform 0.2s;
 }
 
-/* Мягкие волны вокруг кнопки, пока идёт запись */
-.mic-btn.is-on::after {
+/* Голос слышен: кнопка чуть увеличена, вокруг расходятся волны */
+.mic-btn.is-hearing {
+  transform: scale(1.08);
+}
+
+.mic-btn.is-hearing::before,
+.mic-btn.is-hearing::after {
   content: '';
   position: absolute;
-  inset: -4px;
+  inset: -3px;
   border-radius: 50%;
-  border: 2px solid rgb(224 83 61 / 0.45);
-  animation: rec-wave 1.2s ease-out infinite;
+  border: 2px solid rgb(224 83 61 / 0.5);
+  animation: rec-wave 1s ease-out infinite;
 }
 
-@keyframes rec-pulse {
-  50% {
-    opacity: 0.35;
-  }
+.mic-btn.is-hearing::after {
+  animation-delay: 0.5s;
 }
 
 @keyframes rec-wave {
@@ -548,7 +542,7 @@
 .chat-dock {
   position: fixed;
   left: 50%;
-  bottom: calc(var(--nav-height) + 14px + env(safe-area-inset-bottom));
+  bottom: calc(var(--nav-height) + var(--nav-gap) + env(safe-area-inset-bottom));
   transform: translateX(-50%);
   width: min(100%, 480px);
   padding: 0 16px;
@@ -600,7 +594,7 @@
 .chat-panel {
   position: fixed;
   top: calc(84px + env(safe-area-inset-top));
-  bottom: calc(var(--nav-height) + 86px + env(safe-area-inset-bottom));
+  bottom: calc(var(--nav-height) + var(--nav-gap) + 70px + env(safe-area-inset-bottom));
   left: 50%;
   transform: translateX(-50%);
   width: min(100%, 480px);

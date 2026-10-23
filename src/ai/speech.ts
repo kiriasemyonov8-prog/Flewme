@@ -1,6 +1,5 @@
-// Голосовой ввод вопроса Флюми (SPEC 3.21): распознавание речи силами браузера
-// (Web Speech API). Речь распознаёт внешний сервис — Apple в Safari, Google в Chrome,
-// поэтому в интерфейсе об этом честно сказано. Флюми голосом не отвечает.
+// Голосовой ввод вопроса Флюми (SPEC 3.21, 3.22): распознавание речи силами браузера
+// (Web Speech API; в Safari речь распознаёт Apple, в Chrome — Google). Флюми голосом не отвечает.
 
 /** Минимальное описание API распознавания: в стандартных типах TypeScript его нет. */
 interface RecognitionResultEvent {
@@ -16,6 +15,9 @@ interface Recognition {
   onresult: ((e: RecognitionResultEvent) => void) | null;
   onerror: ((e: { error: string }) => void) | null;
   onend: (() => void) | null;
+  onspeechstart: (() => void) | null;
+  onspeechend: (() => void) | null;
+  onsoundend: (() => void) | null;
   start(): void;
   stop(): void;
   abort(): void;
@@ -48,6 +50,8 @@ export interface ListenHandlers {
   onInterim: (text: string) => void;
   /** Итоговая фраза. */
   onFinal: (text: string) => void;
+  /** Слышен ли сейчас голос: true — человек говорит, false — тишина. */
+  onHearing: (hearing: boolean) => void;
   onError: (error: SpeechError) => void;
   /** Распознавание закончилось (после итога, ошибки или остановки). */
   onEnd: () => void;
@@ -73,7 +77,23 @@ export function listen(h: ListenHandlers): () => void {
   rec.maxAlternatives = 1;
 
   let finalText = '';
+  // «Слышу голос»: начало речи и каждый новый кусок текста; тишина — конец речи
+  // или пауза без нового текста (не все браузеры сообщают о конце речи).
+  let quiet: number | undefined;
+  const hearing = () => {
+    h.onHearing(true);
+    window.clearTimeout(quiet);
+    quiet = window.setTimeout(() => h.onHearing(false), 900);
+  };
+  const silent = () => {
+    window.clearTimeout(quiet);
+    h.onHearing(false);
+  };
+  rec.onspeechstart = hearing;
+  rec.onspeechend = silent;
+  rec.onsoundend = silent;
   rec.onresult = (e) => {
+    hearing();
     let interim = '';
     for (let i = e.resultIndex; i < e.results.length; i++) {
       const r = e.results[i];
@@ -93,6 +113,7 @@ export function listen(h: ListenHandlers): () => void {
     if (e.error !== 'aborted') h.onError(map[e.error] ?? 'other');
   };
   rec.onend = () => {
+    silent();
     if (finalText.trim()) h.onFinal(finalText.trim());
     h.onEnd();
   };

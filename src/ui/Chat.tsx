@@ -50,6 +50,7 @@ export function ChatThread({ chat }: { chat: ChatStore }) {
 export function ChatInput({ chat, inputRef }: { chat: ChatStore; inputRef?: RefObject<HTMLInputElement | null> }) {
   const [question, setQuestion] = useState('');
   const [listening, setListening] = useState(false);
+  const [hearing, setHearing] = useState(false);
   const [speechError, setSpeechError] = useState<SpeechError | null>(null);
   const stopRef = useRef<(() => void) | null>(null);
 
@@ -70,9 +71,11 @@ export function ChatInput({ chat, inputRef }: { chat: ChatStore; inputRef?: RefO
         chat.send(text);
         setQuestion('');
       },
+      onHearing: setHearing,
       onError: setSpeechError,
       onEnd: () => {
         setListening(false);
+        setHearing(false);
         stopRef.current = null;
       },
     });
@@ -80,11 +83,6 @@ export function ChatInput({ chat, inputRef }: { chat: ChatStore; inputRef?: RefO
 
   return (
     <div className="chat-input">
-      {listening && (
-        <p className="chat-status" role="status">
-          <span className="rec-dot" aria-hidden /> Слушаю… Речь распознаёт сервис Apple или Google — фраза передаётся им.
-        </p>
-      )}
       {speechError && !listening && (
         <p className="chat-status is-error" role="alert">
           {SPEECH_ERRORS[speechError]}
@@ -113,7 +111,7 @@ export function ChatInput({ chat, inputRef }: { chat: ChatStore; inputRef?: RefO
         {isSpeechSupported() && (
           <button
             type="button"
-            className={`mic-btn${listening ? ' is-on' : ''}`}
+            className={`mic-btn${listening ? ' is-on' : ''}${hearing ? ' is-hearing' : ''}`}
             aria-label={listening ? 'Остановить запись' : 'Спросить голосом'}
             aria-pressed={listening}
             onClick={toggleMic}
