@@ -11,7 +11,8 @@ import { addCategory } from '../core/profile';
 import { CATEGORY_ERRORS } from './profile/SimpleSheets';
 import type { ChatStore } from '../state/useChat';
 import type { FinanceStore } from '../state/useFinance';
-import { ChatInput, ChatThread } from '../ui/Chat';
+import { ChatInput, ChatThread, MicButton } from '../ui/Chat';
+import { useVoiceInput } from '../state/useVoiceInput';
 import { DemoBadge } from '../ui/DemoBadge';
 import { CloseDaySheet } from './home/CloseDaySheet';
 import { ExpenseSheet } from './home/ExpenseSheet';
@@ -49,6 +50,14 @@ export function HomeScreen({
   const chatRef = useRef<HTMLDivElement>(null);
   const dockRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  // Голосовой ввод живёт здесь, чтобы запись началась прямо по нажатию на главной и шла в чате.
+  const voice = useVoiceInput(chatStore);
+  const stopVoice = voice.stop;
+
+  // Закрыли чат — запись останавливается.
+  useEffect(() => {
+    if (!chat) stopVoice();
+  }, [chat, stopVoice]);
 
   // Нажатие на «Главная» в навигации возвращает экран из режима чата.
   useEffect(() => {
@@ -72,7 +81,8 @@ export function HomeScreen({
     void dock.offsetHeight; // зафиксировать стартовое положение перед анимацией
     dock.style.transition = '';
     dock.style.transform = '';
-    inputRef.current?.focus({ preventScroll: true });
+    // Открыли чат голосом — клавиатуру не показываем, идёт запись.
+    if (!voice.listening) inputRef.current?.focus({ preventScroll: true });
   }, [chat]);
 
 
@@ -248,10 +258,14 @@ export function HomeScreen({
 
       {/* Полоса остаётся на месте (невидимой), чтобы раскладка не прыгала; поле ввода — в панели снизу. */}
       <div ref={chatRef} className="chat-box" style={{ visibility: chat ? 'hidden' : undefined }}>
-        <button type="button" className="chat-strip glass" onClick={() => setChat(true)} tabIndex={chat ? -1 : undefined}>
-          <MessageCircle size={20} aria-hidden />
-          <span>Спросить Флюми</span>
-        </button>
+        <div className="chat-strip glass">
+          <button type="button" className="chat-strip-open" onClick={() => setChat(true)} tabIndex={chat ? -1 : undefined}>
+            <MessageCircle size={20} aria-hidden />
+            <span>Спросить Флюми</span>
+          </button>
+          {/* Микрофон: сразу открывает чат и начинает запись */}
+          {voice.supported && !chat && <MicButton voice={voice} onStart={() => setChat(true)} />}
+        </div>
       </div>
 
       {chat && (
@@ -260,7 +274,7 @@ export function HomeScreen({
             <ChatThread chat={chatStore} />
           </section>
           <div ref={dockRef} className="chat-dock">
-            <ChatInput chat={chatStore} inputRef={inputRef} />
+            <ChatInput chat={chatStore} inputRef={inputRef} voice={voice} />
           </div>
         </>
       )}
