@@ -44,10 +44,10 @@ export function HomeScreen({
   const [sheet, setSheet] = useState<SheetState>(null);
   const [chat, setChat] = useState(false);
   const [robotShift, setRobotShift] = useState<string | undefined>();
-  const [chatShift, setChatShift] = useState<string | undefined>();
   const [dismissed, setDismissed] = useState<string[]>([]);
   const robotRef = useRef<HTMLDivElement>(null);
   const chatRef = useRef<HTMLDivElement>(null);
+  const dockRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Нажатие на «Главная» в навигации возвращает экран из режима чата.
@@ -55,19 +55,23 @@ export function HomeScreen({
     setChat(false);
   }, [homeSignal]);
 
-  // Робот уменьшается в иконку слева сверху, поле чата опускается к нижней навигации.
+  // Робот уменьшается в иконку слева сверху. Поле чата переезжает в закреплённую
+  // снизу панель (она сама встаёт над клавиатурой телефона): плавно летит из места полосы.
   useLayoutEffect(() => {
-    if (!chat || !robotRef.current || !chatRef.current) {
+    if (!chat || !robotRef.current || !chatRef.current || !dockRef.current) {
       setRobotShift(undefined);
-      setChatShift(undefined);
       return;
     }
     window.scrollTo({ top: 0 });
     const r = robotRef.current.getBoundingClientRect();
     setRobotShift(`translate(${16 - r.left}px, ${16 - r.top}px) scale(${ROBOT_ICON / r.height})`);
-    const c = chatRef.current.getBoundingClientRect();
-    const navTop = document.querySelector('.nav')?.getBoundingClientRect().top ?? window.innerHeight;
-    setChatShift(`translateY(${navTop - 14 - c.bottom}px)`);
+    const dock = dockRef.current;
+    const from = chatRef.current.getBoundingClientRect().top - dock.getBoundingClientRect().top;
+    dock.style.transition = 'none';
+    dock.style.transform = `translate(-50%, ${from}px)`;
+    void dock.offsetHeight; // зафиксировать стартовое положение перед анимацией
+    dock.style.transition = '';
+    dock.style.transform = '';
     inputRef.current?.focus({ preventScroll: true });
   }, [chat]);
 
@@ -242,21 +246,23 @@ export function HomeScreen({
         </button>
       </div>
 
-      <div ref={chatRef} className="chat-box" style={{ transform: chatShift }}>
-        {chat ? (
-          <ChatInput chat={chatStore} inputRef={inputRef} />
-        ) : (
-          <button type="button" className="chat-strip glass" onClick={() => setChat(true)}>
-            <MessageCircle size={20} aria-hidden />
-            <span>Спросить Флюми</span>
-          </button>
-        )}
+      {/* Полоса остаётся на месте (невидимой), чтобы раскладка не прыгала; поле ввода — в панели снизу. */}
+      <div ref={chatRef} className="chat-box" style={{ visibility: chat ? 'hidden' : undefined }}>
+        <button type="button" className="chat-strip glass" onClick={() => setChat(true)} tabIndex={chat ? -1 : undefined}>
+          <MessageCircle size={20} aria-hidden />
+          <span>Спросить Флюми</span>
+        </button>
       </div>
 
       {chat && (
-        <section className="chat-panel" aria-label="Чат с Флюми">
-          <ChatThread chat={chatStore} />
-        </section>
+        <>
+          <section className="chat-panel" aria-label="Чат с Флюми">
+            <ChatThread chat={chatStore} />
+          </section>
+          <div ref={dockRef} className="chat-dock">
+            <ChatInput chat={chatStore} inputRef={inputRef} />
+          </div>
+        </>
       )}
 
       {sheet?.kind === 'expense' && (

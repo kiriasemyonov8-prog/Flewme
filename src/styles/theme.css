@@ -63,5 +63,6 @@
   --shadow-card: 0 1px 2px rgb(29 34 31 / 0.04), 0 6px 20px rgb(29 34 31 / 0.05);
 
   --font: 'Manrope Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --nav-height: 68px;
+  /* реальная высота нижнего меню (подписи в две строки) */
+  --nav-height: 80px;
 }

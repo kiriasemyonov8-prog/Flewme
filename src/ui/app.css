@@ -380,7 +380,6 @@
 .chat-box {
   position: relative;
   z-index: 10;
-  transition: transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .chat-strip,
@@ -409,6 +408,8 @@
   background: none;
   outline: none;
   font: inherit;
+  /* не меньше 16px: иначе iPhone увеличивает страницу при вводе */
+  font-size: 16px;
   color: var(--text);
 }
 
@@ -473,6 +474,35 @@
   width: min(100%, 480px);
   padding: 0 16px;
   z-index: 15;
+  transition:
+    transform 0.55s cubic-bezier(0.22, 1, 0.36, 1),
+    bottom 0.25s ease-out;
+}
+
+/*
+ * Открыта клавиатура телефона (--kb и .kb-open ставит useKeyboardInset):
+ * нижнее меню уезжает вниз, поле чата встаёт прямо над клавиатурой,
+ * лента сообщений и нижние шторки заканчиваются над ними.
+ */
+.kb-open .nav {
+  transform: translate(-50%, 120%);
+  pointer-events: none;
+}
+
+.nav {
+  transition: transform 0.25s ease-out;
+}
+
+.kb-open .chat-dock {
+  bottom: calc(var(--kb) + 10px);
+}
+
+.kb-open .chat-panel {
+  bottom: calc(var(--kb) + 82px);
+}
+
+.kb-open .sheet-backdrop {
+  bottom: var(--kb);
 }
 
 /* «Улёт» вверх: всё, кроме робота и навигации */
@@ -693,7 +723,8 @@
   background: var(--surface);
   box-shadow: inset 0 0 0 1.5px var(--border);
   font: inherit;
-  font-size: 15px;
+  /* не меньше 16px: иначе iPhone увеличивает страницу при вводе */
+  font-size: 16px;
 }
 
 .field-error {

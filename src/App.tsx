@@ -7,6 +7,7 @@ import { ProfileScreen } from './screens/ProfileScreen';
 import { PurchaseScreen } from './screens/PurchaseScreen';
 import { currentMood, useChat } from './state/useChat';
 import { useFinance } from './state/useFinance';
+import { useKeyboardInset } from './state/useKeyboard';
 import './ui/app.css';
 
 export function App() {
@@ -15,6 +16,7 @@ export function App() {
   // Чат, открытый из раздела по иконке Флюми; повторное нажатие возвращает в этот раздел.
   const [chatOpen, setChatOpen] = useState(false);
   const store = useFinance();
+  useKeyboardInset();
   const chat = useChat(store);
   const mood = currentMood(store);
 
