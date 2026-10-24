@@ -1877,7 +1877,7 @@
   justify-content: center;
 }
 
-/* «Лимит»: Флюми без фона и карточка с числом одной группой по центру; карточка поверх, её читают первой */
+/* «Лимит»: Флюми без фона и карточка с числом одной группой по центру; карточка позади Флюми: он закрывает только её правый край, число видно целиком */
 .figure-limit {
   align-items: flex-end;
 }
@@ -1885,13 +1885,13 @@
 .figure-limit .figure-stat {
   position: absolute;
   left: 50%;
-  top: 22%;
-  margin-left: -43%;
-  z-index: 2;
+  top: 15%;
+  margin-left: -49%;
+  z-index: 0;
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: 14px 18px;
+  padding: 14px 56px 14px 18px;
   border-radius: var(--radius-card);
   background: var(--surface);
   box-shadow: var(--shadow-card);
@@ -1918,7 +1918,7 @@
 .figure-limit .figure-robot {
   position: absolute;
   left: 50%;
-  margin-left: -9%;
+  margin-left: -16%;
   bottom: 0;
   z-index: 1;
   height: 72%;
@@ -2005,9 +2005,9 @@
 .porthole-window {
   position: absolute;
   left: 50%;
-  bottom: 5%;
-  width: min(88cqw, 80cqh);
-  height: min(88cqw, 80cqh);
+  bottom: 3%;
+  width: min(96cqw, 88cqh);
+  height: min(96cqw, 88cqh);
   transform: translateX(-50%);
   border-radius: 50%;
   overflow: hidden;
@@ -2028,7 +2028,7 @@
   left: 50%;
   bottom: -8%;
   height: 74%;
-  transform: translateX(-50%) rotate(-4deg);
+  transform: translateX(-50%);
   transform-origin: 50% 100%;
 }
 
