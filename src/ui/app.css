@@ -1877,16 +1877,17 @@
   justify-content: center;
 }
 
-/* «Лимит»: Флюми без фона опирается на карточку с числом, оба чуть наклонены навстречу */
+/* «Лимит»: Флюми без фона и карточка с числом одной группой по центру; карточка поверх, её читают первой */
 .figure-limit {
   align-items: flex-end;
 }
 
 .figure-limit .figure-stat {
   position: absolute;
-  left: 4%;
+  left: 50%;
   top: 22%;
-  z-index: 0;
+  margin-left: -43%;
+  z-index: 2;
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -1916,10 +1917,11 @@
 
 .figure-limit .figure-robot {
   position: absolute;
-  right: 2%;
+  left: 50%;
+  margin-left: -9%;
   bottom: 0;
   z-index: 1;
-  height: 78%;
+  height: 72%;
   transform: rotate(8deg);
   transform-origin: 50% 100%;
 }
@@ -1996,15 +1998,16 @@
   height: clamp(280px, 52vh, 460px);
   /* снизу Флюми обрезан краем сцены, сверху и по бокам — нет */
   clip-path: inset(-50% -50% 0 -50%);
+  /* размер круга считается от размеров сцены, чтобы он всегда был ровным */
+  container-type: size;
 }
 
 .porthole-window {
   position: absolute;
   left: 50%;
-  bottom: 12%;
-  width: 88%;
-  aspect-ratio: 1;
-  max-height: 86%;
+  bottom: 5%;
+  width: min(88cqw, 80cqh);
+  height: min(88cqw, 80cqh);
   transform: translateX(-50%);
   border-radius: 50%;
   overflow: hidden;
@@ -2027,4 +2030,60 @@
   height: 74%;
   transform: translateX(-50%) rotate(-4deg);
   transform-origin: 50% 100%;
+}
+
+/* «Настроение»: три Флюми в ряд, в центре чуть крупнее, под каждым — когда он такой */
+.figure-moods {
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.mood-item {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  text-align: center;
+}
+
+.mood-robot {
+  width: 100%;
+  height: 52%;
+  display: flex;
+  justify-content: center;
+}
+
+/* Три Флюми должны поместиться в ширину: картинка сжимается по ширине колонки */
+.mood-robot .robot-img {
+  max-width: 100%;
+  object-fit: contain;
+  object-position: 50% 100%;
+}
+
+.mood-item:nth-child(2) .mood-robot {
+  height: 62%;
+}
+
+.mood-item:nth-child(1) .mood-robot {
+  transform: rotate(-5deg);
+}
+
+.mood-item:nth-child(3) .mood-robot {
+  transform: rotate(5deg);
+}
+
+.mood-name {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.mood-when {
+  min-height: 2.7em;
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--text-muted);
 }

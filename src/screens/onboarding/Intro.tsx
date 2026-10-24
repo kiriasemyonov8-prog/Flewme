@@ -1,5 +1,5 @@
 // Первый вход (SPEC 3.27): приветствие и три карточки о функциях.
-import { Mic, ShoppingBag, Wallet, type LucideIcon } from 'lucide-react';
+import { Mic, ShoppingBag, Smile, Wallet, type LucideIcon } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { characterBackground, Robot, type Expression } from '../../assets/character';
 
@@ -24,11 +24,34 @@ function Porthole() {
  * Как показан Флюми на карточке — каждая выглядит по-своему:
  * limit — без фона, опирается на карточку «На сегодня» (пример числа);
  * chat — небольшой, рядом пример переписки «кофе 250»;
+ * moods — три настроения Флюми в ряд с подписями;
  * closeup — крупно, по грудь, без фона, низ плавно растворяется.
  */
-type Look = 'limit' | 'chat' | 'closeup';
+type Look = 'limit' | 'chat' | 'moods' | 'closeup';
+
+/** Настроения Флюми и когда они бывают (SPEC, раздел 4, 3.16, 3.26). */
+const MOODS: { mood: Expression; name: string; when: string }[] = [
+  { mood: 'calm', name: 'Спокоен', when: 'трат сегодня ещё нет' },
+  { mood: 'joy', name: 'Радуется', when: 'тратите в рамках дня' },
+  { mood: 'sad', name: 'Грустит', when: 'день вышел за лимит' },
+];
 
 function Figure({ mood, look }: { mood: Expression; look: Look }) {
+  if (look === 'moods') {
+    return (
+      <div className="card-figure figure-moods">
+        {MOODS.map((m) => (
+          <div key={m.mood} className="mood-item">
+            <div className="mood-robot">
+              <Robot expression={m.mood} />
+            </div>
+            <span className="mood-name">{m.name}</span>
+            <span className="mood-when">{m.when}</span>
+          </div>
+        ))}
+      </div>
+    );
+  }
   return (
     <div className={`card-figure figure-${look}`}>
       {look === 'limit' && (
@@ -71,7 +94,8 @@ export function Welcome({ onStart, onDemo }: { onStart: () => void; onDemo: () =
   );
 }
 
-// Эмоции чередуются: приветствие — радость, дальше спокойствие, радость, спокойствие.
+// Эмоции чередуются: приветствие — радость, «Лимит» — спокойствие, «Траты» — радость,
+// «Настроение» показывает все три, «Покупки» — спокойствие.
 const CARDS: { Icon: LucideIcon; mood: Expression; look: Look; title: string; text: string }[] = [
   {
     Icon: Wallet,
@@ -86,6 +110,13 @@ const CARDS: { Icon: LucideIcon; mood: Expression; look: Look; title: string; te
     look: 'chat',
     title: 'Траты за секунду',
     text: 'Записывайте кнопкой, голосом или просто напишите в чат «кофе 250». Вечером закройте день одним касанием.',
+  },
+  {
+    Icon: Smile,
+    mood: 'joy',
+    look: 'moods',
+    title: 'Настроение Флюми',
+    text: 'По Флюми сразу видно, как идёт день. Грусть — без упрёков: завтра лимит подстроится, и всё выровняется.',
   },
   {
     Icon: ShoppingBag,
