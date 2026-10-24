@@ -3,13 +3,18 @@ import { Mic, ShoppingBag, Wallet, type LucideIcon } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { characterBackground, Robot, type Expression } from '../../assets/character';
 
-/** Флюми в своей комнате (фон с главной): фон обрезается по бокам, Флюми — снизу. */
-function Scene({ mood, className }: { mood: Expression; className: string }) {
+/**
+ * Приветствие: комната Флюми в круглом «иллюминаторе», а сам Флюми крупно стоит перед ним —
+ * голова выходит за круг, снизу он обрезан краем сцены.
+ */
+function Porthole() {
   return (
-    <div className={`onboard-scene ${className}`}>
-      <img className="onboard-scene-bg" src={characterBackground} alt="" draggable={false} />
-      <div className="onboard-scene-robot">
-        <Robot expression={mood} />
+    <div className="hero-porthole">
+      <div className="porthole-window">
+        <img src={characterBackground} alt="" draggable={false} />
+      </div>
+      <div className="porthole-robot">
+        <Robot expression="joy" />
       </div>
     </div>
   );
@@ -17,16 +22,28 @@ function Scene({ mood, className }: { mood: Expression; className: string }) {
 
 /**
  * Как показан Флюми на карточке — каждая выглядит по-своему:
- * bare — небольшой, без фона, с наклоном и тенью на «полу»;
- * peek — маленький, выглядывает сбоку из своей комнаты;
+ * limit — без фона, опирается на карточку «На сегодня» (пример числа);
+ * chat — небольшой, рядом пример переписки «кофе 250»;
  * closeup — крупно, по грудь, без фона, низ плавно растворяется.
  */
-type Look = 'bare' | 'peek' | 'closeup';
+type Look = 'limit' | 'chat' | 'closeup';
 
 function Figure({ mood, look }: { mood: Expression; look: Look }) {
-  if (look === 'peek') return <Scene mood={mood} className="scene-card scene-peek" />;
   return (
     <div className={`card-figure figure-${look}`}>
+      {look === 'limit' && (
+        <div className="figure-stat" aria-hidden>
+          <span className="figure-stat-label">Например, на сегодня</span>
+          <span className="figure-stat-value num">1 050 ₽</span>
+          <span className="figure-stat-note">можно потратить</span>
+        </div>
+      )}
+      {look === 'chat' && (
+        <div className="figure-bubbles" aria-hidden>
+          <span className="bubble bubble-user">кофе 250</span>
+          <span className="bubble bubble-flyumi">Записал в «Еду». На сегодня осталось 800 ₽</span>
+        </div>
+      )}
       <div className="figure-robot">
         <Robot expression={mood} />
       </div>
@@ -37,7 +54,7 @@ function Figure({ mood, look }: { mood: Expression; look: Look }) {
 export function Welcome({ onStart, onDemo }: { onStart: () => void; onDemo: () => void }) {
   return (
     <div className="onboard onboard-welcome">
-      <Scene mood="joy" className="scene-welcome" />
+      <Porthole />
       <h1 className="onboard-title">Привет, я Флюми</h1>
       <p className="onboard-text">
         Помогу каждый день знать, сколько можно потратить, чтобы спокойно дотянуть до зарплаты и копить на цели.
@@ -59,14 +76,14 @@ const CARDS: { Icon: LucideIcon; mood: Expression; look: Look; title: string; te
   {
     Icon: Wallet,
     mood: 'calm',
-    look: 'bare',
+    look: 'limit',
     title: 'Лимит на сегодня',
     text: 'Флюми учитывает зарплату, обязательные платежи и откладывание и говорит, сколько можно потратить сегодня, чтобы хватило до дохода.',
   },
   {
     Icon: Mic,
     mood: 'joy',
-    look: 'peek',
+    look: 'chat',
     title: 'Траты за секунду',
     text: 'Записывайте кнопкой, голосом или просто напишите в чат «кофе 250». Вечером закройте день одним касанием.',
   },
