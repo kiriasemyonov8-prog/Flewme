@@ -52,7 +52,7 @@ const IMPORT_ERRORS: Record<ImportError, string> = {
   broken: 'Файл копии повреждён, восстановить из него нельзя.',
 };
 
-export function ProfileScreen({ store }: { store: FinanceStore }) {
+export function ProfileScreen({ store, onStartOnboarding }: { store: FinanceStore; onStartOnboarding: () => void }) {
   const { data, today, update, replace } = store;
   const [open, setOpen] = useState<Open>(null);
   const [categoryError, setCategoryError] = useState<string | null>(null);
@@ -389,9 +389,9 @@ export function ProfileScreen({ store }: { store: FinanceStore }) {
               setOpen({
                 kind: 'confirm',
                 title: 'Ввести свои данные',
-                text: 'Демо-данные будут удалены, и вы начнёте с чистого листа: укажете счета, доходы и платежи. Продолжить?',
-                label: 'Начать',
-                run: () => replace(P.emptyData(today)),
+                text: 'Флюми задаст 7 коротких вопросов. Когда вы ответите, демо-данные заменятся вашими. Продолжить?',
+                label: 'К анкете',
+                run: onStartOnboarding,
               })
             }
           >

@@ -1,6 +1,6 @@
 // Повтор «каждую неделю» и «раз в две недели» для доходов и платежей (SPEC 3.26).
 import { formatDayMonth } from '../core/format';
-import type { WeeklyRepeat } from '../core/types';
+import type { IncomeSchedule, WeeklyRepeat } from '../core/types';
 
 const SHORT = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 const ON_DAYS = ['по понедельникам', 'по вторникам', 'по средам', 'по четвергам', 'по пятницам', 'по субботам', 'по воскресеньям'];
@@ -56,4 +56,11 @@ export function ChoiceChips<T extends string>({
       ))}
     </div>
   );
+}
+
+/** Когда приходит регулярный доход — коротко для списков. */
+export function incomeScheduleText(s: IncomeSchedule): string {
+  if (s.type === 'window') return `${s.fromDay}–${s.toDay} числа`;
+  if (s.type === 'weekly' || s.type === 'biweekly') return repeatText(s);
+  return `${s.days.join(' и ')} числа`;
 }

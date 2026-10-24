@@ -23,12 +23,18 @@ function monthLabel(m: ISOMonth): string {
 /** Обязательный платёж: название, сумма, день месяца. Изменение суммы — с выбранного месяца. */
 export function PaymentSheet({
   payment,
+  presetName,
+  simple = false,
   today,
   onSave,
   onDelete,
   onClose,
 }: {
   payment?: FixedPayment;
+  /** Название готового варианта (анкета первого входа). */
+  presetName?: string;
+  /** Без выбора «с какого месяца» — в анкете прошлых месяцев ещё нет. */
+  simple?: boolean;
   today: ISODate;
   onSave: (v: {
     name: string;
@@ -43,7 +49,7 @@ export function PaymentSheet({
 }) {
   const thisMonth = monthOf(today);
   const current = payment ? paymentAmountFor(payment, thisMonth) : null;
-  const [name, setName] = useState(payment?.name ?? '');
+  const [name, setName] = useState(payment?.name ?? presetName ?? '');
   const [text, setText] = useState(current ? toRubInput(current) : '');
   const [day, setDay] = useState<number | null>(payment?.day ?? null);
   const [fromMonth, setFromMonth] = useState<ISOMonth>(thisMonth);
@@ -64,7 +70,7 @@ export function PaymentSheet({
   }
 
   return (
-    <Sheet title={payment ? payment.name : 'Новый обязательный платёж'} onClose={onClose}>
+    <Sheet title={payment ? payment.name : presetName ?? 'Новый обязательный платёж'} onClose={onClose}>
       <TextField label="Название" value={name} onChange={setName} placeholder="Например, квартира" />
       <ChoiceChips
         label="Как часто"
@@ -88,7 +94,7 @@ export function PaymentSheet({
           setError(null);
         }}
       />
-      {payment && amountChanged && (
+      {payment && amountChanged && !simple && (
         <>
           <p className="hint">Новая сумма будет действовать с выбранного месяца, прошлые месяцы не изменятся.</p>
           <Segmented

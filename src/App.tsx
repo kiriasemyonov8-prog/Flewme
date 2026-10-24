@@ -5,12 +5,18 @@ import { FinanceScreen } from './screens/FinanceScreen';
 import { HomeScreen } from './screens/HomeScreen';
 import { ProfileScreen } from './screens/ProfileScreen';
 import { PurchaseScreen } from './screens/PurchaseScreen';
+import { FeatureCards, Welcome } from './screens/onboarding/Intro';
+import { Questionnaire } from './screens/onboarding/Questionnaire';
 import { currentMood, useChat } from './state/useChat';
 import { useFinance } from './state/useFinance';
 import { useKeyboardInset } from './state/useKeyboard';
 import './ui/app.css';
 
+/** Первый вход (SPEC 3.27): приветствие → карточки → анкета; из профиля — сразу анкета. */
+type Phase = 'welcome' | 'cards' | 'quiz' | 'quizFromProfile' | 'app';
+
 export function App() {
+  const [phase, setPhase] = useState<Phase>('welcome');
   const [tab, setTab] = useState<Tab>('home');
   const [homeSignal, setHomeSignal] = useState(0);
   // Чат, открытый из раздела по иконке Флюми; повторное нажатие возвращает в этот раздел.
@@ -32,6 +38,32 @@ export function App() {
     window.scrollTo({ top: 0 });
   }
 
+  function enterApp() {
+    setPhase('app');
+    setTab('home');
+    setChatOpen(false);
+    window.scrollTo({ top: 0 });
+  }
+
+  if (phase !== 'app') {
+    return (
+      <div className="app">
+        {phase === 'welcome' && <Welcome onStart={() => setPhase('cards')} onDemo={enterApp} />}
+        {phase === 'cards' && <FeatureCards onDone={() => setPhase('quiz')} />}
+        {(phase === 'quiz' || phase === 'quizFromProfile') && (
+          <Questionnaire
+            today={store.today}
+            onBack={() => (phase === 'quiz' ? setPhase('cards') : setPhase('app'))}
+            onDone={(data) => {
+              store.replace(data);
+              enterApp();
+            }}
+          />
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="app">
       <main className="screen">
@@ -44,7 +76,7 @@ export function App() {
             <SectionHeader mood={mood} isDemo={store.data.isDemo} onOpenChat={() => toggleChat(true)} />
             {tab === 'finance' && <FinanceScreen store={store} />}
             {tab === 'purchase' && <PurchaseScreen store={store} />}
-            {tab === 'profile' && <ProfileScreen store={store} />}
+            {tab === 'profile' && <ProfileScreen store={store} onStartOnboarding={() => setPhase('quizFromProfile')} />}
           </>
         )}
       </main>
