@@ -5,7 +5,7 @@ import { currentBalance } from './balance';
 import { CONFIG } from './config';
 import type { ISODate, ISOMonth } from './dates';
 import type { Kopecks } from './money';
-import { rub, sub, sum } from './money';
+import { add, rub, sub, sum } from './money';
 import { dataPayments } from './schedule';
 import type {
   Account,
@@ -68,8 +68,15 @@ export function balanceGap(
   const account = data.accounts.find((a) => a.id === accountId);
   if (account?.kind !== 'main' || asOf < account.asOf) return null;
   const alreadyPaid = new Set(account.asOf === asOf ? (account.paidOnAsOf ?? []) : []);
-  const paidNow = dataPayments(data, asOf, asOf).filter((p) => paidOnAsOf.includes(p.key) && !alreadyPaid.has(p.key));
-  const expected = sub(currentBalance(account, data, asOf), sum(paidNow.map((p) => p.amount)));
+  const dueToday = dataPayments(data, asOf, asOf).filter((p) => !alreadyPaid.has(p.key));
+  // Сумма на счёте уже считает сегодняшние платежи списанными, если прежний остаток был раньше.
+  // В новой сумме списаны только отмеченные, остальные ещё впереди — возвращаем их в ожидание.
+  const countedPaid = asOf > account.asOf ? dueToday : [];
+  const paidNow = dueToday.filter((p) => paidOnAsOf.includes(p.key));
+  const expected = sub(
+    add(currentBalance(account, data, asOf), sum(countedPaid.map((p) => p.amount))),
+    sum(paidNow.map((p) => p.amount)),
+  );
   if (amount >= expected) return null;
   const gap = sub(expected, amount);
   const notice = gap > CONFIG.gapNoticeMin || gap * 100 > Math.abs(expected) * CONFIG.gapNoticePercent;

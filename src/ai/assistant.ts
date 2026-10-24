@@ -86,6 +86,20 @@ function renderLines(lines: ExplainLine[]): string {
 const NEED_DATA =
   'Чтобы ответить честно, мне нужен остаток основного счёта. Укажите его в профиле — без него я не буду гадать.';
 
+/**
+ * Что уже отложено заранее — по настоящим данным человека, а не одной фразой на всех:
+ * обязательные платежи до дохода, транспорт, откладывание. Пусто — резервов нет.
+ */
+export function reservedText(limit: LimitOk): string {
+  const names = [...new Set(limit.reservedPayments.map((p) => p.name.toLowerCase()))];
+  if (limit.transportReserve > 0) names.push('транспорт');
+  if (limit.setAside > 0) names.push('отложенное в накопления');
+  if (names.length === 0) return '';
+  const list = names.length === 1 ? names[0] : `${names.slice(0, -1).join(', ')} и ${names[names.length - 1]}`;
+  // Без согласования числа: «Заранее учтено: квартира» звучит верно и для одного пункта, и для нескольких.
+  return ` Заранее учтено: ${list}.`;
+}
+
 /** «Что можно сделать», когда денег не хватает (3.26, п. 11): только то, что видно по данным. */
 function shortageAdvice(data: FinanceData, limit: LimitOk, today: ISODate): string {
   const tips: string[] = [];
@@ -158,7 +172,7 @@ export const demoAssistant: Assistant = {
               : `По вашим данным хватает, но покупка забирает ${r.sharePercent}% доступных денег — это компромисс.`;
         const where =
           source.kind === 'main'
-            ? `Считаю только свободные деньги основного счёта: квартира, транспорт и откладывание уже зарезервированы.`
+            ? `Считаю только свободные деньги основного счёта.${reservedText(limit)}`
             : `Считаю свободные деньги основного счёта и все накопления.`;
         return {
           text: `${verdict}\n\n${renderLines(lines)}\n\n${where} Подробный расчёт и варианты — в разделе «Покупка».`,
@@ -175,7 +189,7 @@ export const demoAssistant: Assistant = {
           text:
             `Вот как получился лимит:\n\n${renderLines(lines)}\n\n` +
             `${formatRub(lines.find((l) => l.label === 'Свободно до дохода')!.amount)} делю на ${limit.days} дн. до ${formatDayMonth(limit.horizon)} — ` +
-            `получается ${formatRubWhole(limit.dailyLimit)} в день. Квартира и транспорт зарезервированы заранее, чтобы на них точно хватило.`,
+            `получается ${formatRubWhole(limit.dailyLimit)} в день.${reservedText(limit)}`,
         };
       }
 
@@ -184,7 +198,7 @@ export const demoAssistant: Assistant = {
           return { text: `По вашим данным свободных денег до ${formatDayMonth(limit.horizon)} нет: всё уходит на обязательные платежи и резервы. Спросите «почему такой лимит?» — покажу расчёт.` };
         }
         return {
-          text: `По вашим данным хватит: до ${formatDayMonth(limit.horizon)} свободно ${formatRub(sub(limit.free, limit.saved))} — это ${formatRubWhole(limit.dailyLimit)} в день на ${limit.days} дн. Квартира и транспорт уже учтены. Если держаться лимита, до дохода дотянете спокойно.`,
+          text: `По вашим данным хватит: до ${formatDayMonth(limit.horizon)} свободно ${formatRub(sub(limit.free, limit.saved))} — это ${formatRubWhole(limit.dailyLimit)} в день на ${limit.days} дн.${reservedText(limit)} Если держаться лимита, до дохода дотянете спокойно.`,
         };
       }
 

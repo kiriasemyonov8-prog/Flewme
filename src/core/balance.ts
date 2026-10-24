@@ -26,11 +26,22 @@ export function savingsAccount(data: FinanceData): Account | undefined {
   return data.accounts.find((a) => a.kind === 'savings');
 }
 
-/** Платежи, уже наступившие после записи остатка и до сегодняшнего дня (не включая сегодня). */
-function paymentsPaidSinceSnapshot(account: Account, data: FinanceData, today: ISODate): Kopecks {
+/**
+ * Платежи, уже наступившие после записи остатка. Для лимита — до сегодняшнего дня (сегодняшний
+ * платёж резервируется отдельно). Для суммы на счёте (withToday) — и сегодняшний: в свой день платёж
+ * считается оплаченным, если только остаток не записан сегодня без отметки «уже списан».
+ */
+function paymentsPaidSinceSnapshot(
+  account: Account,
+  data: FinanceData,
+  today: ISODate,
+  withToday = false,
+): Kopecks {
   const paidOnAsOf = new Set(account.paidOnAsOf ?? []);
   const occ = dataPayments(data, account.asOf, today).filter(
-    (p) => p.date < today && !(p.date === account.asOf && paidOnAsOf.has(p.key)),
+    (p) =>
+      (p.date < today || (withToday && p.date === today && account.asOf < today)) &&
+      !(p.date === account.asOf && paidOnAsOf.has(p.key)),
   );
   return sum(occ.map((p) => p.amount));
 }
@@ -163,7 +174,7 @@ export function currentBalance(account: Account, data: FinanceData, today: ISODa
     for (const r of data.receipts) {
       if (!r.inBalance && r.date <= today && isAfterSnapshot(account, r)) b = add(b, r.amount);
     }
-    b = sub(b, paymentsPaidSinceSnapshot(account, data, today));
+    b = sub(b, paymentsPaidSinceSnapshot(account, data, today, true));
     b = sub(b, transportSpentSinceSnapshot(account, data, today, covered, true));
   }
   return b;
