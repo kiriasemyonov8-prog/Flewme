@@ -15,6 +15,8 @@ import { STRETCH_KEY } from '../core/limit';
 import type { Kopecks } from '../core/money';
 import { monthlyDeficit } from '../core/month';
 import { newId } from '../state/useFinance';
+import { saveBackupFile } from '../state/backupFile';
+import { backupDue } from '../core/storage';
 import { spentTodayMain, transportOverMonth } from '../core/balance';
 import { addDays, diffDays, type ISODate } from '../core/dates';
 import type { IncomeOccurrence } from '../core/schedule';
@@ -49,6 +51,8 @@ interface Reminder {
   action: string;
   run: () => void;
   more?: { label: string; run: () => void }[];
+  /** Что ещё сделать на «Позже» (например, запомнить, что напоминание отложено). */
+  onLater?: () => void;
 }
 
 /** Высота Флюми, когда он уменьшается в иконку чата. */
@@ -207,6 +211,16 @@ export function HomeScreen({
           run: () => store.update((d) => transferSetAside(d, limit, today, Date.now(), newId)),
         }
       : null;
+  // Раз в 2 недели — мягко про копию в файл (3.29): данные живут только в этом телефоне.
+  const backupReminder: Reminder | null = backupDue(data, store.meta, today)
+    ? {
+        key: `backup-${today}`,
+        text: 'Давно не было копии данных. Сохраним в файл? Это защита, если телефон потеряется или браузер очистится.',
+        action: 'Сохранить копию',
+        run: () => saveBackupFile(store, today),
+        onLater: () => store.setMeta({ backupNudgeOn: today }),
+      }
+    : null;
   const reminder: Reminder | null = incomeReminder ?? paymentReminder ?? shortageReminder ?? (
     missed.length > 0
       ? {
@@ -226,6 +240,7 @@ export function HomeScreen({
             run: onOpenProfile,
           }
         : setAsideReminder ??
+          backupReminder ??
           (eveningDue
             ? {
                 key: `evening-${today}`,
@@ -273,7 +288,10 @@ export function HomeScreen({
                 {m.label}
               </button>
             ))}
-            <button type="button" className="link-btn" onClick={() => setDismissed((d) => [...d, reminder.key])}>
+            <button type="button" className="link-btn" onClick={() => {
+                reminder.onLater?.();
+                setDismissed((d) => [...d, reminder.key]);
+              }}>
               Позже
             </button>
           </div>

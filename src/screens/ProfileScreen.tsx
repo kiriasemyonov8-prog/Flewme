@@ -5,7 +5,8 @@ import { addDays, type ISODate } from '../core/dates';
 import type { Kopecks } from '../core/money';
 import { repeatText } from '../ui/Repeat';
 import { GapSheet, StretchSheet } from './profile/GapSheet';
-import { exportBackup, importBackup, type ImportError } from '../core/backup';
+import { importBackup, type ImportError } from '../core/backup';
+import { saveBackupFile } from '../state/backupFile';
 import { demoData } from '../core/demo';
 import { formatDayMonth, formatRub } from '../core/format';
 import * as P from '../core/profile';
@@ -116,13 +117,7 @@ export function ProfileScreen({ store, onStartOnboarding }: { store: FinanceStor
   }
 
   function download() {
-    const blob = new Blob([exportBackup(data, new Date())], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `flyumi-kopiya-${today}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+    saveBackupFile(store, today);
   }
 
   async function pickFile(file: File) {

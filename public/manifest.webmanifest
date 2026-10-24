@@ -1,0 +1,17 @@
+{
+  "name": "Флюми — ИИ финансовый помощник",
+  "short_name": "Флюми",
+  "description": "Честный дневной лимит, запись трат за секунду, покупки и цели. Данные хранятся только на вашем устройстве.",
+  "lang": "ru",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#eceee6",
+  "theme_color": "#e7ecdf",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

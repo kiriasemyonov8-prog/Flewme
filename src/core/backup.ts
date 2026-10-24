@@ -32,7 +32,7 @@ const ARRAYS: (keyof FinanceData)[] = [
 ];
 
 /** Проверяем форму данных; суммы должны быть целыми копейками. */
-function looksValid(d: unknown): d is FinanceData {
+export function looksValid(d: unknown): d is FinanceData {
   if (!d || typeof d !== 'object') return false;
   const x = d as Record<string, unknown>;
   if (typeof x.startedOn !== 'string' || typeof x.isDemo !== 'boolean') return false;
