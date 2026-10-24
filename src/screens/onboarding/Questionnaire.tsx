@@ -51,7 +51,10 @@ export function Questionnaire({
   // Черновики полей ввода сумм
   const [balanceText, setBalanceText] = useState('');
   const [hasIncome, setHasIncome] = useState<'yes' | 'no' | null>(null);
-  const [transport, setTransport] = useState<'0' | '2000' | '5000' | 'own'>('0');
+  type Transport = '0' | '2000' | '5000' | 'own';
+  const [transport, setTransport] = useState<Transport | null>(null);
+  // «Нет обязательных платежей» — тоже ответ: без него вопрос не пройти (вопросы 1–4 обязательны).
+  const [noPayments, setNoPayments] = useState(false);
   const [transportText, setTransportText] = useState('');
   const [hasGoal, setHasGoal] = useState(false);
   const [goalName, setGoalName] = useState('');
@@ -82,7 +85,11 @@ export function Questionnaire({
         if (hasIncome === 'yes' && a.incomes.length === 0) return 'Добавьте доход или выберите «Нет»';
         if (hasIncome === 'no') patch({ incomes: [] });
         return null;
+      case 2:
+        if (a.payments.length === 0 && !noPayments) return 'Добавьте платёж или отметьте «Нет обязательных платежей»';
+        return null;
       case 3: {
+        if (transport === null) return 'Выберите вариант';
         if (transport !== 'own') {
           patch({ transportMonthly: rub(Number(transport)) });
           return null;
@@ -108,12 +115,13 @@ export function Questionnaire({
     }
   }
 
+  /** Пропустить можно только вопросы 5–7 (накопления, откладывание, «не экономить»): без первых четырёх лимит неверен. */
+  const canSkip = step >= 4;
+
   function skip() {
     // Пропуск: ответ остаётся пустым, его можно добавить потом в профиле.
-    if (step === 1) patch({ incomes: [], stretchUntil: undefined });
-    if (step === 2) patch({ payments: [] });
-    if (step === 3) patch({ transportMonthly: 0 as Kopecks });
     if (step === 4) patch({ savings: 0 as Kopecks, goal: undefined });
+    if (step === 5) patch({ savePercent: 0 });
     if (step === 6) patch({ protectedCategoryIds: [] });
     next();
   }
@@ -176,7 +184,7 @@ export function Questionnaire({
           {hasIncome === 'no' && (
             <>
               <DateField
-                label="Деньги должны хватить до"
+                label="Денег должно хватить до"
                 value={a.stretchUntil ?? addDays(today, 30)}
                 onChange={(d) => patch({ stretchUntil: d })}
                 today={today}
@@ -195,11 +203,11 @@ export function Questionnaire({
         <>
           <div className="chips">
             {PAYMENT_PRESETS.filter((n) => !a.payments.some((p) => p.name === n)).map((n) => (
-              <button key={n} type="button" className="chip" onClick={() => setSheet({ kind: 'payment', preset: n })}>
+              <button key={n} type="button" className="chip" onClick={() => (setNoPayments(false), setSheet({ kind: 'payment', preset: n }))}>
                 <Plus size={14} aria-hidden /> {n}
               </button>
             ))}
-            <button type="button" className="chip" onClick={() => setSheet({ kind: 'payment' })}>
+            <button type="button" className="chip" onClick={() => (setNoPayments(false), setSheet({ kind: 'payment' }))}>
               <Plus size={14} aria-hidden /> Свой
             </button>
           </div>
@@ -212,7 +220,19 @@ export function Questionnaire({
               onClick={() => setSheet({ kind: 'payment', payment: p })}
             />
           ))}
-          {a.payments.length === 0 && <p className="hint">Нет платежей — просто нажмите «Далее».</p>}
+          {a.payments.length === 0 && (
+            <button
+              type="button"
+              aria-pressed={noPayments}
+              className={`chip${noPayments ? ' is-on' : ''}`}
+              onClick={() => {
+                setNoPayments(!noPayments);
+                setError(null);
+              }}
+            >
+              Нет обязательных платежей
+            </button>
+          )}
         </>
       );
       break;
@@ -223,9 +243,9 @@ export function Questionnaire({
         <>
           <ChoiceChips
             label="Транспорт"
-            value={transport}
+            value={transport ?? ''}
             onChange={(v) => {
-              setTransport(v);
+              setTransport(v as Transport);
               setError(null);
             }}
             options={[
@@ -361,7 +381,7 @@ export function Questionnaire({
         >
           {fromSummary ? 'Готово' : 'Далее'}
         </button>
-        {step > 0 && !fromSummary && (
+        {canSkip && !fromSummary && (
           <button type="button" className="link-btn" onClick={skip}>
             Пропустить, укажу потом
           </button>

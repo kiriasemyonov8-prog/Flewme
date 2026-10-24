@@ -1,14 +1,24 @@
 // Первый вход (SPEC 3.27): приветствие и три карточки о функциях.
 import { Mic, ShoppingBag, Wallet, type LucideIcon } from 'lucide-react';
 import { useRef, useState } from 'react';
-import { Robot, type Expression } from '../../assets/character';
+import { characterBackground, Robot, type Expression } from '../../assets/character';
+
+/** Флюми в своей комнате (фон с главной): фон обрезается по бокам, Флюми — снизу. */
+function Scene({ mood, className }: { mood: Expression; className: string }) {
+  return (
+    <div className={`onboard-scene ${className}`}>
+      <img className="onboard-scene-bg" src={characterBackground} alt="" draggable={false} />
+      <div className="onboard-scene-robot">
+        <Robot expression={mood} />
+      </div>
+    </div>
+  );
+}
 
 export function Welcome({ onStart, onDemo }: { onStart: () => void; onDemo: () => void }) {
   return (
     <div className="onboard onboard-welcome">
-      <div className="onboard-robot">
-        <Robot expression="joy" />
-      </div>
+      <Scene mood="joy" className="scene-welcome" />
       <h1 className="onboard-title">Привет, я Флюми</h1>
       <p className="onboard-text">
         Помогу каждый день знать, сколько можно потратить, чтобы спокойно дотянуть до зарплаты и копить на цели.
@@ -80,9 +90,7 @@ export function FeatureCards({ onDone }: { onDone: () => void }) {
       >
         {CARDS.map(({ Icon, mood, title, text }) => (
           <section key={title} className="feature-card">
-            <div className="feature-robot">
-              <Robot expression={mood} />
-            </div>
+            <Scene mood={mood} className="scene-card" />
             <div className="feature-icon">
               <Icon size={22} aria-hidden />
             </div>
@@ -100,7 +108,7 @@ export function FeatureCards({ onDone }: { onDone: () => void }) {
         <button type="button" className="btn btn-primary btn-wide btn-big" onClick={() => (last ? onDone() : go(index + 1))}>
           {last ? 'Заполнить анкету' : 'Далее'}
         </button>
-        {last && <p className="hint onboard-note">7 коротких вопросов, около 2 минут. Любой можно пропустить.</p>}
+        {last && <p className="hint onboard-note">7 коротких вопросов, около 2 минут. Последние три можно пропустить.</p>}
       </div>
     </div>
   );

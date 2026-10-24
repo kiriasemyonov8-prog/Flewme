@@ -99,7 +99,7 @@ export function StretchSheet({
         Регулярного дохода нет, поэтому Флюми делит деньги на дни до выбранной даты. Разовые доходы прибавятся, когда
         придут.
       </p>
-      <DateField label="Деньги должны хватить до" value={date} onChange={setDate} today={today} min={addDays(today, 1)} />
+      <DateField label="Денег должно хватить до" value={date} onChange={setDate} today={today} min={addDays(today, 1)} />
       <button type="button" className="btn btn-primary btn-wide" onClick={() => onSave(date)}>
         Сохранить
       </button>
