@@ -15,6 +15,25 @@ function Scene({ mood, className }: { mood: Expression; className: string }) {
   );
 }
 
+/**
+ * Как показан Флюми на карточке — каждая выглядит по-своему:
+ * bare — небольшой, без фона, с наклоном и тенью на «полу»;
+ * peek — маленький, выглядывает сбоку из своей комнаты;
+ * closeup — крупно, по грудь, без фона, низ плавно растворяется.
+ */
+type Look = 'bare' | 'peek' | 'closeup';
+
+function Figure({ mood, look }: { mood: Expression; look: Look }) {
+  if (look === 'peek') return <Scene mood={mood} className="scene-card scene-peek" />;
+  return (
+    <div className={`card-figure figure-${look}`}>
+      <div className="figure-robot">
+        <Robot expression={mood} />
+      </div>
+    </div>
+  );
+}
+
 export function Welcome({ onStart, onDemo }: { onStart: () => void; onDemo: () => void }) {
   return (
     <div className="onboard onboard-welcome">
@@ -35,22 +54,26 @@ export function Welcome({ onStart, onDemo }: { onStart: () => void; onDemo: () =
   );
 }
 
-const CARDS: { Icon: LucideIcon; mood: Expression; title: string; text: string }[] = [
+// Эмоции чередуются: приветствие — радость, дальше спокойствие, радость, спокойствие.
+const CARDS: { Icon: LucideIcon; mood: Expression; look: Look; title: string; text: string }[] = [
   {
     Icon: Wallet,
     mood: 'calm',
+    look: 'bare',
     title: 'Лимит на сегодня',
     text: 'Флюми учитывает зарплату, обязательные платежи и откладывание и говорит, сколько можно потратить сегодня, чтобы хватило до дохода.',
   },
   {
     Icon: Mic,
     mood: 'joy',
+    look: 'peek',
     title: 'Траты за секунду',
     text: 'Записывайте кнопкой, голосом или просто напишите в чат «кофе 250». Вечером закройте день одним касанием.',
   },
   {
     Icon: ShoppingBag,
-    mood: 'joy',
+    mood: 'calm',
+    look: 'closeup',
     title: 'Покупки и цели',
     text: 'Перед крупной покупкой Флюми честно скажет, потянете ли вы её и что будет с целями. И подскажет, как накопить.',
   },
@@ -88,9 +111,9 @@ export function FeatureCards({ onDone }: { onDone: () => void }) {
           scrollEnd.current = window.setTimeout(() => setIndex(Math.round(t.scrollLeft / Math.max(1, t.clientWidth))), 120);
         }}
       >
-        {CARDS.map(({ Icon, mood, title, text }) => (
+        {CARDS.map(({ Icon, mood, look, title, text }) => (
           <section key={title} className="feature-card">
-            <Scene mood={mood} className="scene-card" />
+            <Figure mood={mood} look={look} />
             <div className="feature-icon">
               <Icon size={22} aria-hidden />
             </div>

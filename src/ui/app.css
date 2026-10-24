@@ -1867,3 +1867,67 @@
 .summary-limit .stat-value {
   font-size: 34px;
 }
+
+/* Разные подачи Флюми на карточках первого входа */
+.card-figure {
+  position: relative;
+  width: 100%;
+  height: clamp(210px, 44vh, 380px);
+  display: flex;
+  justify-content: center;
+}
+
+/* Без фона, поменьше, с наклоном и мягкой тенью на «полу» */
+.figure-bare {
+  align-items: flex-end;
+}
+
+.figure-bare::after {
+  content: '';
+  position: absolute;
+  bottom: 4%;
+  left: 50%;
+  width: 46%;
+  height: 7%;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgb(48 66 34 / 0.22), transparent);
+}
+
+.figure-bare .figure-robot {
+  position: relative;
+  z-index: 1;
+  height: 74%;
+  margin-bottom: 6%;
+  transform: rotate(-7deg);
+  transform-origin: 50% 100%;
+}
+
+/* Крупно, по грудь, без фона: низ растворяется, лёгкий наклон в другую сторону */
+.figure-closeup {
+  overflow: hidden;
+  align-items: flex-start;
+  -webkit-mask-image: linear-gradient(to bottom, #000 62%, transparent 96%);
+  mask-image: linear-gradient(to bottom, #000 62%, transparent 96%);
+}
+
+.figure-closeup .figure-robot {
+  height: 128%;
+  margin-top: 4%;
+  transform: rotate(5deg);
+  transform-origin: 50% 30%;
+}
+
+/* В комнате, маленький, выглядывает справа и наклонился к нам */
+.scene-peek .onboard-scene-robot {
+  left: auto;
+  right: -4%;
+  bottom: -12%;
+  height: 70%;
+  transform: rotate(-12deg);
+  transform-origin: 70% 100%;
+}
+
+.scene-peek .onboard-scene-bg {
+  object-position: 60% 100%;
+}
