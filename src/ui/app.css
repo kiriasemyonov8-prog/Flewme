@@ -1877,7 +1877,7 @@
   justify-content: center;
 }
 
-/* «Лимит»: Флюми слева, карточка с числом справа позади него — голова Флюми заходит на её левый край */
+/* «Лимит»: Флюми слева, карточка с числом справа и выше — голова Флюми перекрывает её левый нижний угол */
 .figure-limit {
   align-items: flex-end;
 }
@@ -1885,7 +1885,7 @@
 .figure-limit .figure-stat {
   position: absolute;
   right: 6%;
-  top: 18%;
+  top: 7%;
   z-index: 0;
   display: flex;
   flex-direction: column;
@@ -1918,7 +1918,7 @@
 
 .figure-limit .figure-robot {
   position: absolute;
-  left: 8%;
+  left: 12%;
   bottom: 0;
   z-index: 1;
   height: 74%;
