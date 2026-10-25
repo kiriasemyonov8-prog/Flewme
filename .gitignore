@@ -7,3 +7,8 @@ docs/Справка*
 docs/*выписк*
 docs/*Выписк*
 private/
+docs/*.pdf
+docs/*.csv
+docs/*.xls
+docs/*.xlsx
+docs/*.ofx
