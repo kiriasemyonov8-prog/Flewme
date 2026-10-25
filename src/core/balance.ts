@@ -46,6 +46,15 @@ function paymentsPaidSinceSnapshot(
   return sum(occ.map((p) => p.amount));
 }
 
+/** Движения денег (переводы, пополнения, 3.30) после записи остатка: меняют остаток, но не траты. */
+function movementsNet(account: Account, data: FinanceData, today: ISODate, withToday: boolean): Kopecks {
+  return sum(
+    (data.movements ?? [])
+      .filter((m) => m.accountId === account.id && (withToday ? m.date <= today : m.date < today) && isAfterSnapshot(account, m))
+      .map((m) => m.amount),
+  );
+}
+
 function transfersNet(account: Account, data: FinanceData, today: ISODate): Kopecks {
   let net = ZERO;
   for (const t of data.transfers) {
@@ -114,6 +123,7 @@ export function startOfDayBalance(data: FinanceData, today: ISODate): Kopecks | 
   }
 
   e = add(e, transfersNet(main, data, today));
+  e = add(e, movementsNet(main, data, today, false));
 
   const covered = transportCovered(data);
   for (const x of data.expenses) {
@@ -165,7 +175,7 @@ export function spentTodayMain(data: FinanceData, today: ISODate): Kopecks {
 
 /** Текущая сумма на счёте с учётом всех записанных событий, включая сегодняшние траты. */
 export function currentBalance(account: Account, data: FinanceData, today: ISODate): Kopecks {
-  let b = add(account.amount, transfersNet(account, data, today));
+  let b = add(add(account.amount, transfersNet(account, data, today)), movementsNet(account, data, today, true));
   const covered = account.kind === 'main' ? transportCovered(data) : new Map<string, Kopecks>();
   for (const x of data.expenses) {
     if (x.accountId === account.id && x.date <= today && isAfterSnapshot(account, x)) b = sub(b, limitPart(x, covered));

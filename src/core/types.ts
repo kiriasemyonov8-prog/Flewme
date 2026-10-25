@@ -57,6 +57,8 @@ export interface IncomeReceipt {
   createdAt: number;
   /** Деньги уже вошли в записанный остаток: второй раз не прибавляются, но период начинается (3.25). */
   inBalance?: boolean;
+  /** Пришло из выписки банка — повторная загрузка того же файла не удвоит (3.30). */
+  importKey?: string;
 }
 
 /** «Задерживается»: ожидаемый доход теперь ждём к этой дате (3.25). */
@@ -103,6 +105,34 @@ export interface Expense {
   note?: string;
   /** Примерная трата из демо-набора. */
   demo?: boolean;
+  importKey?: string;
+}
+
+/**
+ * Движение денег, которое не трата и не доход (3.30): перевод человеку или между своими счетами,
+ * пополнение, внесение наличных, кэшбэк, плата банка. Меняет остаток счёта, но не входит
+ * в лимит дня, настроение и категории. amount: «+» — пришло на счёт, «−» — ушло.
+ */
+export interface Movement {
+  id: string;
+  accountId: string;
+  amount: Kopecks;
+  date: ISODate;
+  createdAt: number;
+  note: string;
+  /** Кому ушёл перевод (по нему запоминается «это трата»). */
+  recipient?: string;
+  importKey?: string;
+}
+
+/** Что Флюми запомнил при загрузке выписок (3.30). */
+export interface ImportRules {
+  /** Магазин → категория. */
+  merchants: Record<string, string>;
+  /** Получатель перевода → категория траты («этот перевод — трата»). */
+  recipients: Record<string, string>;
+  /** Брокерский счёт и Инвесткопилка — перевод в накопления. undefined — ещё не спрашивали. */
+  savingsAsTransfer?: boolean;
 }
 
 export type TransferPurpose = 'setAside' | 'saved' | 'withdraw' | 'manual';
@@ -116,6 +146,7 @@ export interface Transfer {
   date: ISODate;
   createdAt: number;
   purpose: TransferPurpose;
+  importKey?: string;
 }
 
 export interface Category {
@@ -218,4 +249,6 @@ export interface FinanceData {
   /** Платежи, о которых уже спросили «прошёл?» и получили «да» (3.26). */
   paymentChecks?: string[];
   paymentDelays?: PaymentDelay[];
+  movements?: Movement[];
+  importRules?: ImportRules;
 }

@@ -1,10 +1,11 @@
-﻿import { Download, Minus, Plus, Upload } from 'lucide-react';
+﻿import { Download, FileSpreadsheet, Minus, Plus, Upload } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { confirmIncome } from '../core/actions';
 import { addDays, type ISODate } from '../core/dates';
 import type { Kopecks } from '../core/money';
 import { repeatText } from '../ui/Repeat';
 import { GapSheet, StretchSheet } from './profile/GapSheet';
+import { ImportSheet } from './profile/ImportSheet';
 import { importBackup, type ImportError } from '../core/backup';
 import { saveBackupFile } from '../state/backupFile';
 import { demoData } from '../core/demo';
@@ -30,6 +31,7 @@ type Open =
   | { kind: 'payment'; id?: string }
   | { kind: 'gap'; amount: Kopecks; asOf: ISODate }
   | { kind: 'stretch' }
+  | { kind: 'import' }
   | { kind: 'transport' }
   | { kind: 'time' }
   | { kind: 'category'; id?: string }
@@ -358,6 +360,10 @@ export function ProfileScreen({ store, onStartOnboarding }: { store: FinanceStor
           Данные хранятся только на этом устройстве. Если очистить данные браузера, они удалятся — поэтому иногда
           сохраняйте копию в файл.
         </p>
+        {/* Выписка банка вместо API: файл читается на устройстве (3.30) */}
+        <button type="button" className="add-row" onClick={() => setOpen({ kind: 'import' })}>
+          <FileSpreadsheet size={18} aria-hidden /> Загрузить выписку банка
+        </button>
         <button type="button" className="add-row" onClick={download}>
           <Download size={18} aria-hidden /> Сохранить копию в файл
         </button>
@@ -474,6 +480,7 @@ export function ProfileScreen({ store, onStartOnboarding }: { store: FinanceStor
           }}
         />
       )}
+      {open?.kind === 'import' && <ImportSheet data={data} onApply={replace} onClose={close} />}
       {open?.kind === 'stretch' && (
         <StretchSheet
           today={today}

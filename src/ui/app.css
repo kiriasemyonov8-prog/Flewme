@@ -2087,3 +2087,25 @@
   line-height: 1.35;
   color: var(--text-muted);
 }
+
+/* Загрузка выписки банка (3.30) */
+.import-facts {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.import-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--surface-soft);
+}
+
+.import-transfers {
+  align-self: flex-start;
+  padding: 4px 0;
+}
