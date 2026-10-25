@@ -118,6 +118,7 @@ export function merchantKey(description: string): string {
   const words = cleanDescription(description)
     .replace(/^возврат (средств по оплате|покупки)\s*/i, '')
     .replace(/^оплата( услуг| в)?\s*/i, '')
+    .replace(/^плата за\s*/i, '')
     .toUpperCase()
     .replace(/Ё/g, 'Е')
     .replace(/[^A-ZА-Я]+/g, ' ')
@@ -151,6 +152,8 @@ export function classifyOp(op: BankOp): OpKind {
   const transferish = /перевод/.test(d) || /перевод/.test(cat) || OTHER_BANK.test(d);
   if (transferish && MARKETPLACE_BANK.test(d)) return 'purchase';
   if (transferish) return 'transferOut';
+  // Подписка — регулярная трата, а не плата банка (3.31): «плата за СберПрайм», T-Bundle.
+  if (/^плата за/.test(d) && /прайм|prime|подписк|bundle|премиум|premium|плюс|plus/.test(d)) return 'purchase';
   if (/^плата за|комисси|снятие наличных/.test(d) || cat === 'наличные') return 'service';
   return 'purchase';
 }
@@ -161,11 +164,11 @@ export function classifyOp(op: BankOp): OpKind {
 const MERCHANT_WORDS: [string, RegExp][] = [
   ['food', /МАГНИТ|ПЯТЕРОЧКА|ВКУСВИЛЛ|ПЕРЕКРЕСТОК|KDV|RESTORAN|CAFE|PARITET|PRODTORG|MAGNOLIYA|PYATEROCHKA|MAGNIT|PEREKRESTOK|VKUSVILL|^VV\b|AROMA|PRODUKTY|ПОДМОСКОВ|LENTA|AUCHAN|DIXY|SAMOKAT|LUNCHBOX|VKUSNOITOCHKA|ROSTIKS|KFC|BURGER|CHAYKHANA|KOFE|COFFEE|VENDING|GOPOEDIM|EATANDSPLIT|BIRKRAFT|EBIDOEBI|IZBUSHKA|MIKROMARKET|DODO|SHOKOLADNITSA|EDA/],
   ['transport', /YANDEX GO|ЯНДЕКС ГО|TPP|AVTOBUS|WHOOSH|URENT|DRIVE|TRANSPORT|CPPK|ЦППК|METRO|TAXI|TAKSI|RZD|AEROEXPRESS|BELKA|DELIMOBIL|CITYDRIVE/],
-  ['health', /GORZDRAV|APTEKA|АПТЕК|ZDRAV|RIGLA|ASNA|FITNESS|CLINIC|STOMAT/],
+  ['health', /SALON|KRASOT|GORZDRAV|APTEKA|АПТЕК|ZDRAV|RIGLA|ASNA|FITNESS|CLINIC|STOMAT/],
   ['home', /^MTS|МТС|BILAYN|БИЛАЙН|MEGAFON|МЕГАФОН|TELE|ROSTELECOM|ZHKU|ЖКУ|MOSENERGO|LEROY/],
   ['shopping', /ОЗОН|ВАЙЛДБЕРРИЗ|OZON|WILDBERRIES|^WB\b|FAMILIA|PODRUZHKA|LETUAL|ZOLOTOE|DNS|MVIDEO|ELDORADO|SHOP|AVITO|PLAYEROK|PLATI|MARKET/],
   ['fun', /QUICKTICKETS|AKVAPARK|GAMES|STEAM|KINO|CINEMA|IVI|OKKO|KINOPOISK|YANDEX PLUS|TEATR/],
-  ['other', /NALOG|BUNDLE/],
+  ['other', /NALOG|BUNDLE|ПРАЙМ|PRIME|ПОДПИСК/],
 ];
 
 /** Категории банка (если они есть в файле) → категории Флюми. */
@@ -202,7 +205,9 @@ export function guessCategory(op: BankOp, rules: ImportRules, categoryIds: Set<s
   if (fromBank) return fromBank;
   const fromMcc = ok(mccCategory(op.mcc));
   if (fromMcc) return fromMcc;
-  return ok(MERCHANT_WORDS.find(([, re]) => re.test(key))?.[0]);
+  // Сначала по короткому названию, потом по всему описанию: «CP* DDX FITNESS13» → «CP DDX», но слово FITNESS есть в описании.
+  const full = cleanDescription(op.description).toUpperCase().replace(/Ё/g, 'Е').replace(/[^A-ZА-Я]+/g, ' ');
+  return ok((MERCHANT_WORDS.find(([, re]) => re.test(key)) ?? MERCHANT_WORDS.find(([, re]) => re.test(full)))?.[0]);
 }
 
 // ——— План загрузки ———

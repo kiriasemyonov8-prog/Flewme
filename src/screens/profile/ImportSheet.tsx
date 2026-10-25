@@ -12,7 +12,10 @@ import {
 } from '../../core/bankImport';
 import { formatDayMonth, formatRub } from '../../core/format';
 import { sum, type Kopecks } from '../../core/money';
+import { parseBankPdf, pdfLines, type BankStatement } from '../../core/bankPdf';
+import { setAccountBalance } from '../../core/profile';
 import type { FinanceData } from '../../core/types';
+import { readPdfItems } from '../../state/pdfText';
 import { newId } from '../../state/useFinance';
 import { Toggle } from '../../ui/Form';
 import { ChoiceChips } from '../../ui/Repeat';
@@ -38,19 +41,40 @@ export function ImportSheet({
   const [savingsAsTransfer, setSavingsAsTransfer] = useState(data.importRules?.savingsAsTransfer ?? false);
   const [incomes, setIncomes] = useState<string[]>([]);
   const [showTransfers, setShowTransfers] = useState(false);
+  const [reading, setReading] = useState(false);
+  const [closing, setClosing] = useState<BankStatement['closing'] | null>(null);
+  const [balanceUpdated, setBalanceUpdated] = useState(false);
   const categoryOptions = data.categories.map((c) => ({ value: c.id, label: c.name }));
   const hasSavingsAccount = data.accounts.some((a) => a.kind === 'savings');
 
+  /** Читаем CSV или PDF-выписку (Сбер, Т-Банк) — прямо на устройстве (3.31). */
+  async function readStatement(file: File): Promise<BankStatement | 'unknownFormat'> {
+    const bytes = await file.arrayBuffer();
+    if (/\.pdf$/i.test(file.name) || file.type === 'application/pdf') {
+      return parseBankPdf(pdfLines(await readPdfItems(bytes)));
+    }
+    const ops = parseBankCsv(decodeBankFile(bytes));
+    return ops === 'unknownFormat' ? ops : { bank: 'csv', ops };
+  }
+
   async function pick(file: File) {
     setError(null);
-    if (/\.pdf$/i.test(file.name) || file.type === 'application/pdf') {
-      return setError('Это PDF-справка. Нужна выгрузка операций в CSV из интернет-банка: tbank.ru → «Операции» → выгрузить в файл, формат CSV.');
+    setReading(true);
+    let statement: BankStatement | 'unknownFormat';
+    try {
+      statement = await readStatement(file);
+    } catch {
+      statement = 'unknownFormat';
+    } finally {
+      setReading(false);
     }
-    const ops = parseBankCsv(decodeBankFile(await file.arrayBuffer()));
-    if (ops === 'unknownFormat') {
-      return setError('Не узнаю формат файла. Нужна выгрузка операций Т-Банка в CSV: в ней есть колонки «Дата операции», «Сумма операции» и «Описание».');
+    if (statement === 'unknownFormat') {
+      return setError(
+        'Не узнаю этот файл. Подходят PDF-выписка Сбера («Выписка по счёту дебетовой карты»), PDF-справка Т-Банка («Справка о движении средств») или выгрузка операций в CSV.',
+      );
     }
-    const p = planImport(data, ops, accountId);
+    setClosing(statement.closing ?? null);
+    const p = planImport(data, statement.ops, accountId);
     setPlan(p);
     // Переводы, которые этому получателю уже отмечали тратой, предлагаем так же.
     const remembered: Record<string, string> = {};
@@ -72,6 +96,26 @@ export function ImportSheet({
           Переводы и другие движения денег ({result.addedMovements}) учтены в остатке счёта, но тратами не считаются.
           {result.confirmedIncomes > 0 ? ` Подтверждено доходов: ${result.confirmedIncomes}.` : ''}
         </p>
+        {/* Остаток из выписки (3.31): одной кнопкой, и он больше не устаревший */}
+        {closing && !balanceUpdated && (
+          <div className="card notice">
+            <span>
+              По выписке на {formatDayMonth(closing.date)} на счёте <b className="num">{formatRub(closing.amount)}</b>. Обновить
+              остаток?
+            </span>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => {
+                onApply(setAccountBalance(result.data, accountId, closing.amount, closing.date, Date.now() + 1));
+                setBalanceUpdated(true);
+              }}
+            >
+              Обновить
+            </button>
+          </div>
+        )}
+        {balanceUpdated && closing && <p className="hint">Остаток обновлён: {formatRub(closing.amount)} на {formatDayMonth(closing.date)}.</p>}
         <button type="button" className="btn btn-primary btn-wide" onClick={onClose}>
           Готово
         </button>
@@ -83,8 +127,8 @@ export function ImportSheet({
     return (
       <Sheet title="Загрузить выписку банка" onClose={onClose}>
         <p className="hint">
-          Выгрузите операции из интернет-банка Т-Банка в файл CSV и выберите его здесь. Файл читается прямо на этом
-          устройстве и никуда не отправляется. Покупки станут тратами, переводы — нет.
+          Подходят PDF-выписка Сбера, PDF-справка Т-Банка о движении средств или выгрузка операций в CSV. Файл
+          читается прямо на этом устройстве и никуда не отправляется. Покупки станут тратами, переводы — нет.
         </p>
         {spendable.length > 1 && (
           <>
@@ -92,8 +136,8 @@ export function ImportSheet({
             <ChoiceChips label="Счёт" value={accountId} onChange={setAccountId} options={spendable.map((a) => ({ value: a.id, label: a.name }))} />
           </>
         )}
-        <button type="button" className="btn btn-primary btn-wide" onClick={() => fileRef.current?.click()}>
-          <Upload size={18} aria-hidden /> Выбрать файл
+        <button type="button" className="btn btn-primary btn-wide" disabled={reading} onClick={() => fileRef.current?.click()}>
+          <Upload size={18} aria-hidden /> {reading ? 'Читаю выписку…' : 'Выбрать файл'}
         </button>
         <input
           ref={fileRef}
