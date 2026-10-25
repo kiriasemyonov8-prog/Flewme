@@ -5,7 +5,7 @@
  * Имена токенов исторические: --emerald — главный акцентный цвет темы, --emerald-soft — его светлая подложка.
  */
 
-/* ——— Светлая (по умолчанию): сочный салатовый, кнопки — яркий градиент ——— */
+/* ——— Светлая (по умолчанию): зелёные с фона Флюми, чуть сочнее; кнопки — градиент от светлого к тёмному ——— */
 :root {
   color-scheme: light;
 
@@ -17,16 +17,16 @@
   --text-muted: #5d6c67;
   --border: #dde8e4;
 
-  /* Акцент — свежий салатовый (3.32: автор попросил салатовее вместо мяты) */
-  --emerald: #5aa72c;
-  --emerald-soft: #e6f5d6;
-  --emerald-ink: #3d7a17;
-  --lime: #b5e06a;
-  --lime-soft: #f1f9e6;
+  /* Акцент — зелёные с фона персонажа (стена #9FB17D, тень #859662), чуть сочнее (3.32) */
+  --emerald: #6f8a38;
+  --emerald-soft: #e9f0dc;
+  --emerald-ink: #4a6224;
+  --lime: #a2be6f;
+  --lime-soft: #f1f5e8;
   --on-accent: #ffffff;
-  --on-accent-shadow: 0 1px 2px rgb(40 90 10 / 0.35);
+  --on-accent-shadow: 0 1px 2px rgb(50 70 20 / 0.4);
 
-  --thought-ink: #2b4a17;
+  --thought-ink: #33441c;
   --thought-shadow: 0 1px 0 rgb(255 255 255 / 0.45);
 
   --orange: #ff8a1f;
@@ -36,14 +36,14 @@
   --danger-ink: #b04a3a;
   --danger-ring: rgb(224 83 61 / 0.5);
 
-  --verdict-yes: #4f9f24;
+  --verdict-yes: #6f8a38;
   --verdict-compromise: #8cc63f;
   --verdict-wait: #f0a312;
   --verdict-no: #dd7a69;
 
   --cat-1: #ff8a1f;
-  --cat-2: #5aa72c;
-  --cat-3: #7fc7e8;
+  --cat-2: #6f8a38;
+  --cat-3: #a2be6f;
   --cat-4: #ec8a7a;
   --cat-5: #b98ae6;
   --cat-6: #f2b13c;
@@ -51,18 +51,18 @@
 
   /* Фон: салатовый свет сверху слева, голубое небо справа, тёплый персик снизу — белые карточки читаются */
   --bg-gradient:
-    radial-gradient(90% 55% at 0% 0%, rgb(214 240 180 / 0.95) 0%, rgb(214 240 180 / 0) 70%),
+    radial-gradient(90% 55% at 0% 0%, rgb(214 228 188 / 0.95) 0%, rgb(214 228 188 / 0) 70%),
     radial-gradient(80% 50% at 100% 12%, rgb(212 230 250 / 0.85) 0%, rgb(212 230 250 / 0) 70%),
     radial-gradient(90% 55% at 100% 100%, rgb(252 226 200 / 0.85) 0%, rgb(252 226 200 / 0) 70%),
-    linear-gradient(180deg, #f0f6ea 0%, #eff2f2 55%, #f4efea 100%);
+    linear-gradient(180deg, #eff3e8 0%, #eff1ee 55%, #f4efea 100%);
 
-  /* Кнопки без стекла (3.32): белые плотные и сочный салатовый градиент у главной */
+  /* Кнопки без стекла (3.32): белые плотные; главная — градиент от светлого зелёного фона к тёмному */
   --glass-bg: #ffffff;
-  --glass-border: rgb(90 140 50 / 0.12);
+  --glass-border: rgb(111 138 56 / 0.14);
   --glass-blur: none;
   --glass-shadow: 0 1px 2px rgb(40 80 20 / 0.06), 0 6px 18px rgb(40 80 20 / 0.08);
   --glass-sheen: none;
-  --glass-primary-bg: linear-gradient(135deg, #a8dd3c 0%, #6cc23a 45%, #2f9e45 100%);
+  --glass-primary-bg: linear-gradient(135deg, #a2be6f 0%, #87a452 45%, #6f8a38 100%);
   --glass-primary-border: transparent;
 
   --nav-bg: rgb(255 255 255 / 0.94);
