@@ -103,17 +103,29 @@ export function parseBankCsv(text: string): BankOp[] | 'unknownFormat' {
 
 export type OpKind = 'purchase' | 'transferOut' | 'savings' | 'refund' | 'inflow' | 'service';
 
-const CITY_WORDS = new Set(['MOSCOW', 'MOSKVA', 'MOSKOW', 'RUS', 'G', 'RU', 'LYUBERTSY', 'RAMENSKOE', 'MOSCOWRUS', 'Г']);
+const CITY_WORDS = new Set(['MOSCOW', 'MOSKVA', 'MOSKOW', 'RUS', 'G', 'RU', 'LYUBERTSY', 'RAMENSKOE', 'MOSCOWRUS', 'Г', 'OOO', 'ООО', 'IP', 'ИП', 'SBSCR']);
 
-/** Название магазина без «Оплата в», города и номеров: «Оплата в MAGNOLIYA MOSCOW RUS» → «MAGNOLIYA». */
+/** Хвост сбербанковского описания: «. Операция по карте ****1234». */
+function cleanDescription(description: string): string {
+  return description.replace(/\.?\s*операция по карте\s*\*+\d*/i, '').trim();
+}
+
+/**
+ * Название магазина без «Оплата в», города и номеров: «Оплата в MAGNOLIYA MOSCOW RUS» → «MAGNOLIYA».
+ * Город стоит перед «RUS» и выбрасывается вместе с ним — так работает для любого города.
+ */
 export function merchantKey(description: string): string {
-  const name = description
+  const words = cleanDescription(description)
     .replace(/^возврат (средств по оплате|покупки)\s*/i, '')
     .replace(/^оплата( услуг| в)?\s*/i, '')
     .toUpperCase()
-    .replace(/[^A-ZА-ЯЁ]+/g, ' ')
+    .replace(/Ё/g, 'Е')
+    .replace(/[^A-ZА-Я]+/g, ' ')
     .split(' ')
-    .filter((w) => w && !CITY_WORDS.has(w));
+    .filter(Boolean);
+  const rus = words.lastIndexOf('RUS');
+  const noCity = rus > 0 ? [...words.slice(0, rus - 1), ...words.slice(rus + 1)] : words;
+  const name = noCity.filter((w) => !CITY_WORDS.has(w));
   return name.slice(0, 2).join(' ') || description.trim().toUpperCase();
 }
 
@@ -123,15 +135,22 @@ export function recipientKey(description: string): string {
   return phone ? `тел. …${phone.slice(-4)}` : description.replace(/^внешний перевод\s*/i, '').trim().slice(0, 40);
 }
 
+/** Перевод «в банк» маркетплейса — на деле покупка (Сбер так показывает оплату Wildberries и Ozon по СБП). */
+const MARKETPLACE_BANK = /wildberries|вайлдберриз|ozon|озон/;
+/** Описание начинается с названия другого банка — это перевод (Сбер: «ВТБ. Операция по карте»). */
+const OTHER_BANK = /^(втб|т-банк|тинькофф|альфа|газпромбанк|райффайзен|совкомбанк|почта банк|мтс банк|сбер)(\.|\s|$)/;
+
 export function classifyOp(op: BankOp): OpKind {
-  const d = op.description.toLowerCase();
+  const d = cleanDescription(op.description).toLowerCase();
   const cat = (op.bankCategory ?? '').toLowerCase();
   if (op.amount > 0) {
-    if (/^возврат/.test(d)) return 'refund';
+    if (/^возврат/.test(d) || /^возврат/.test(cat)) return 'refund';
     return 'inflow';
   }
-  if (/брокерск|инвесткопилк|вклад|накопительн/.test(d)) return 'savings';
-  if (/перевод/.test(d) || cat === 'переводы') return 'transferOut';
+  if (/брокерск|инвесткопилк|вклад|накопительн|vklad/.test(d)) return 'savings';
+  const transferish = /перевод/.test(d) || /перевод/.test(cat) || OTHER_BANK.test(d);
+  if (transferish && MARKETPLACE_BANK.test(d)) return 'purchase';
+  if (transferish) return 'transferOut';
   if (/^плата за|комисси|снятие наличных/.test(d) || cat === 'наличные') return 'service';
   return 'purchase';
 }
@@ -140,12 +159,12 @@ export function classifyOp(op: BankOp): OpKind {
 
 /** Встроенный словарь: часть названия магазина → категория (SPEC 3.30). */
 const MERCHANT_WORDS: [string, RegExp][] = [
-  ['food', /MAGNOLIYA|PYATEROCHKA|MAGNIT|PEREKRESTOK|VKUSVILL|^VV\b|AROMA|PRODUKTY|ПОДМОСКОВ|LENTA|AUCHAN|DIXY|SAMOKAT|LUNCHBOX|VKUSNOITOCHKA|ROSTIKS|KFC|BURGER|CHAYKHANA|KOFE|COFFEE|VENDING|GOPOEDIM|EATANDSPLIT|BIRKRAFT|EBIDOEBI|IZBUSHKA|MIKROMARKET|DODO|SHOKOLADNITSA|EDA/],
-  ['transport', /WHOOSH|URENT|DRIVE|TRANSPORT|CPPK|ЦППК|METRO|TAXI|TAKSI|RZD|AEROEXPRESS|BELKA|DELIMOBIL|CITYDRIVE/],
+  ['food', /МАГНИТ|ПЯТЕРОЧКА|ВКУСВИЛЛ|ПЕРЕКРЕСТОК|KDV|RESTORAN|CAFE|PARITET|PRODTORG|MAGNOLIYA|PYATEROCHKA|MAGNIT|PEREKRESTOK|VKUSVILL|^VV\b|AROMA|PRODUKTY|ПОДМОСКОВ|LENTA|AUCHAN|DIXY|SAMOKAT|LUNCHBOX|VKUSNOITOCHKA|ROSTIKS|KFC|BURGER|CHAYKHANA|KOFE|COFFEE|VENDING|GOPOEDIM|EATANDSPLIT|BIRKRAFT|EBIDOEBI|IZBUSHKA|MIKROMARKET|DODO|SHOKOLADNITSA|EDA/],
+  ['transport', /YANDEX GO|ЯНДЕКС ГО|TPP|AVTOBUS|WHOOSH|URENT|DRIVE|TRANSPORT|CPPK|ЦППК|METRO|TAXI|TAKSI|RZD|AEROEXPRESS|BELKA|DELIMOBIL|CITYDRIVE/],
   ['health', /GORZDRAV|APTEKA|АПТЕК|ZDRAV|RIGLA|ASNA|FITNESS|CLINIC|STOMAT/],
   ['home', /^MTS|МТС|BILAYN|БИЛАЙН|MEGAFON|МЕГАФОН|TELE|ROSTELECOM|ZHKU|ЖКУ|MOSENERGO|LEROY/],
-  ['shopping', /OZON|WILDBERRIES|^WB\b|FAMILIA|PODRUZHKA|LETUAL|ZOLOTOE|DNS|MVIDEO|ELDORADO|SHOP|AVITO|PLAYEROK|PLATI|MARKET/],
-  ['fun', /GAMES|STEAM|KINO|CINEMA|IVI|OKKO|KINOPOISK|YANDEX PLUS|TEATR/],
+  ['shopping', /ОЗОН|ВАЙЛДБЕРРИЗ|OZON|WILDBERRIES|^WB\b|FAMILIA|PODRUZHKA|LETUAL|ZOLOTOE|DNS|MVIDEO|ELDORADO|SHOP|AVITO|PLAYEROK|PLATI|MARKET/],
+  ['fun', /QUICKTICKETS|AKVAPARK|GAMES|STEAM|KINO|CINEMA|IVI|OKKO|KINOPOISK|YANDEX PLUS|TEATR/],
   ['other', /NALOG|BUNDLE/],
 ];
 
@@ -154,7 +173,7 @@ const BANK_CATEGORIES: [string, RegExp][] = [
   ['food', /супермаркет|продукт|фастфуд|ресторан|кафе|еда/],
   ['transport', /транспорт|такси|каршеринг|топливо|авиабилет|ж\/д/],
   ['health', /аптек|медицин|здоров|спорт/],
-  ['home', /связь|коммунал|жкх|дом и ремонт/],
+  ['home', /связь|коммунал|жкх|дом и ремонт|для дома/],
   ['shopping', /одежд|обув|маркетплейс|электрон|техник|цвет|подарк/],
   ['fun', /развлеч|кино|игр|музык|цифров/],
 ];

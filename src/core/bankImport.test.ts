@@ -166,3 +166,57 @@ describe('план и загрузка', () => {
     expect(planImport(demo(), salary, 'main').incomes[0]?.income.key).toBe('salary:2026-11');
   });
 });
+
+// Операции в стиле выписки Сбера (вымышленные): категория банка отдельно, хвост «Операция по карте».
+describe('операции в стиле Сбера', () => {
+  const op = (bankCategory: string, description: string, amount: number): BankOp => ({
+    date: T,
+    time: '12:00',
+    amount: amount as Kopecks,
+    description: `${description}. Операция по карте ****0000`,
+    bankCategory,
+  });
+
+  it('оплата Wildberries и Ozon «переводом СБП» — это покупка', () => {
+    expect(classifyOp(op('Перевод СБП', 'Wildberries (Вайлдберриз Банк)', -53000))).toBe('purchase');
+    expect(classifyOp(op('Перевод СБП', 'Озон Банк (Ozon)', -10000))).toBe('purchase');
+  });
+
+  it('переводы на карту другого банка и между своими счетами — не траты', () => {
+    expect(classifyOp(op('Прочие операции', 'ВТБ', -280000))).toBe('transferOut');
+    expect(classifyOp(op('Перевод СБП', 'Т-Банк', -300000))).toBe('transferOut');
+    expect(classifyOp(op('Перевод с карты', 'SBOL', -50000))).toBe('transferOut');
+    expect(classifyOp(op('Прочие операции', 'SBERBANK ONL@IN KARTA-VKLAD', -8400000))).toBe('savings');
+    expect(classifyOp(op('Прочие операции', 'SBERBANK ONL@IN VKLAD-KARTA', 300000))).toBe('inflow');
+  });
+
+  it('возврат по QR-коду узнаётся по категории банка и гасит покупку', () => {
+    const buy = op('Оплата по QR–коду СБП', 'Озон', -208300);
+    const back = { ...op('Возврат покупки по QR–коду СБП', 'Озон', 208300), time: '23:51' };
+    expect(classifyOp(back)).toBe('refund');
+    const plan = planImport(demo(), [buy, back], 'main');
+    expect(plan.purchases).toHaveLength(0);
+    expect(plan.refundsApplied).toBe(1);
+  });
+
+  it('название магазина без города и «Операция по карте»', () => {
+    expect(merchantKey('PYATEROCHKA 32417 CHEREPOVECZ RUS. Операция по карте ****0000')).toBe('PYATEROCHKA');
+    expect(merchantKey('SBSCR_Магнит Супермаркет Омни. Операция по карте ****0000')).toBe('МАГНИТ СУПЕРМАРКЕТ');
+    expect(merchantKey('OOO RANDEVU PLYUS CHEREPOVECZ RUS')).toBe('RANDEVU PLYUS');
+  });
+
+  it('категории: из категории банка, а при «Прочие расходы» — по названию', () => {
+    const plan = planImport(
+      demo(),
+      [
+        op('Супермаркеты', 'OOO RANDEVU PLYUS CHEREPOVECZ RUS', -53695),
+        op('Транспорт', 'CHEREPOVEC TPP VOLOGDA RUS', -4000),
+        op('Прочие расходы', 'YANDEX*4121*GO MOSCOW RUS', -55500),
+        op('Оплата по QR–коду СБП', 'SBSCR_Магнит Супермаркет Омни', -82996),
+        op('Все для дома', 'POL MARKET.. CHEREPOVECZ RUS', -278600),
+      ],
+      'main',
+    );
+    expect(plan.purchases.map((p) => p.categoryId)).toEqual(['food', 'transport', 'transport', 'food', 'home']);
+  });
+});
