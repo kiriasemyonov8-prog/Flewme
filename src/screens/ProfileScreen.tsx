@@ -48,6 +48,8 @@ function amountText(i: RegularIncome): string {
   return i.min === i.max ? formatRub(i.min) : `${formatRub(i.min)} – ${formatRub(i.max)}`;
 }
 
+const THEME_NAMES = { light: 'Светлая', dark: 'Графит', aurora: 'Аврора' } as const;
+
 const IMPORT_ERRORS: Record<ImportError, string> = {
   notJson: 'Этот файл не похож на копию Флюми.',
   notFlyumi: 'Этот файл не похож на копию Флюми.',
@@ -353,6 +355,26 @@ export function ProfileScreen({ store, onStartOnboarding }: { store: FinanceStor
         {data.settings.reminderEnabled && (
           <RowButton title="Время" value={data.settings.reminderTime} onClick={() => setOpen({ kind: 'time' })} />
         )}
+      </Collapsible>
+
+      <Collapsible {...sec('look', 'Оформление', THEME_NAMES[store.meta.theme ?? 'light'])}>
+        <Segmented
+          label="Тема"
+          value={store.meta.theme ?? 'light'}
+          onChange={(v) => store.setMeta({ theme: v })}
+          options={[
+            { value: 'light', label: THEME_NAMES.light },
+            { value: 'dark', label: THEME_NAMES.dark },
+            { value: 'aurora', label: THEME_NAMES.aurora },
+          ]}
+        />
+        <p className="hint">
+          {store.meta.theme === 'dark'
+            ? 'Графит и сигнальный оранжевый, как огни Флюми.'
+            : store.meta.theme === 'aurora'
+              ? 'Ночное небо с северным сиянием: бирюза, фуксия и фиолетовый.'
+              : 'Воздушная мята и стеклянные кнопки.'}
+        </p>
       </Collapsible>
 
       <Collapsible {...sec('data', 'Данные', data.isDemo ? 'демо · копия в файл, свои данные' : 'копия в файл, сброс к демо')}>

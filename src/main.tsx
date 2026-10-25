@@ -7,6 +7,14 @@ import './styles/global.css';
 import { App } from './App';
 import { ExpressionsShowcase } from './screens/ExpressionsShowcase';
 
+// Тема оформления (3.32) — до первого кадра, чтобы не мигала светлая.
+try {
+  const theme = JSON.parse(localStorage.getItem('flyumi') ?? 'null')?.meta?.theme;
+  if (theme === 'dark' || theme === 'aurora') document.documentElement.dataset.theme = theme;
+} catch {
+  // нет сохранённых данных — светлая тема
+}
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>{location.hash === '#expressions' ? <ExpressionsShowcase /> : <App />}</StrictMode>,
 );

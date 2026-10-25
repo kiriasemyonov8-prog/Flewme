@@ -43,7 +43,7 @@
   padding: 6px 12px;
   border-radius: var(--radius-pill);
   background: var(--orange-soft);
-  color: #a3500a;
+  color: var(--warn-ink);
   font-size: 13px;
 }
 
@@ -103,11 +103,11 @@
   height: calc(var(--nav-height) + env(safe-area-inset-bottom));
   align-items: start;
   padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
-  background: var(--glass-sheen), rgb(255 255 255 / 0.6);
+  background: var(--glass-sheen), var(--nav-bg);
   -webkit-backdrop-filter: var(--glass-blur);
   backdrop-filter: var(--glass-blur);
   border-top: 1px solid var(--glass-border);
-  box-shadow: 0 -6px 24px rgb(29 34 31 / 0.05);
+  box-shadow: var(--nav-shadow);
   z-index: 20;
 }
 
@@ -180,9 +180,9 @@
 
 .btn-primary {
   background: var(--glass-sheen), var(--glass-primary-bg);
-  border-color: rgb(255 255 255 / 0.45);
-  color: #fff;
-  text-shadow: 0 1px 1px rgb(0 0 0 / 0.12);
+  border-color: var(--glass-primary-border);
+  color: var(--on-accent);
+  text-shadow: var(--on-accent-shadow);
 }
 
 .btn-secondary,
@@ -277,7 +277,7 @@
   inset: 0;
   border-radius: 26px;
   overflow: hidden;
-  box-shadow: 0 10px 28px rgb(48 66 34 / 0.18);
+  box-shadow: var(--shadow-scene);
 }
 
 .scene-bg img {
@@ -303,7 +303,7 @@
   font-weight: 500;
   font-size: clamp(14px, min(var(--sw) * 0.05, var(--sh) * 0.105), 22px);
   line-height: 1.05;
-  text-shadow: 0 1px 0 rgb(255 255 255 / 0.35);
+  text-shadow: var(--thought-shadow);
 }
 
 .scene-thought p {
@@ -480,7 +480,7 @@
   margin: 0;
   padding: 8px 12px;
   border-radius: 14px;
-  background: var(--glass-sheen), rgb(255 255 255 / 0.85);
+  background: var(--glass-sheen), var(--surface-glass);
   box-shadow: var(--shadow-card);
   font-size: 12.5px;
   line-height: 1.35;
@@ -488,7 +488,7 @@
 }
 
 .chat-status.is-error {
-  color: #a3412f;
+  color: var(--danger-ink);
 }
 
 .mic-btn {
@@ -507,8 +507,8 @@
 
 /* Запись включена: кнопка красная и спокойная — ждёт голос */
 .mic-btn.is-on {
-  background: #e0533d;
-  color: #fff;
+  background: var(--danger);
+  color: var(--on-accent);
   transition: transform 0.2s;
 }
 
@@ -523,7 +523,7 @@
   position: absolute;
   inset: -3px;
   border-radius: 50%;
-  border: 2px solid rgb(224 83 61 / 0.5);
+  border: 2px solid var(--danger-ring);
   animation: rec-wave 1s ease-out infinite;
 }
 
@@ -550,7 +550,7 @@
   border-radius: 50%;
   border: 0;
   background: var(--emerald);
-  color: #fff;
+  color: var(--on-accent);
   cursor: pointer;
 }
 
@@ -682,7 +682,7 @@
   padding: 1px 8px;
   border-radius: 999px;
   background: var(--orange-soft);
-  color: #a3500a;
+  color: var(--warn-ink);
   font-size: 11px;
   font-weight: 700;
   vertical-align: middle;
@@ -719,7 +719,7 @@
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  background: rgb(29 34 31 / 0.35);
+  background: var(--overlay);
   animation: fade-in 0.2s ease-out;
 }
 
@@ -859,7 +859,7 @@
 .field-error {
   margin: -8px 0 0;
   text-align: center;
-  color: #b04a3a;
+  color: var(--danger-ink);
   font-size: 13px;
 }
 
@@ -1191,7 +1191,7 @@
 }
 
 .collapsible.is-open {
-  box-shadow: 0 2px 4px rgb(29 34 31 / 0.05), 0 12px 30px rgb(48 66 34 / 0.12);
+  box-shadow: var(--shadow-raised);
 }
 
 .collapsible-head {
@@ -1323,7 +1323,7 @@
 }
 
 .link-btn.danger {
-  color: #b04a3a;
+  color: var(--danger-ink);
 }
 
 .data-warning {
@@ -1377,7 +1377,7 @@
   width: 50px;
   height: 30px;
   border-radius: 999px;
-  background: #d5d9d2;
+  background: var(--toggle-off);
   transition: background-color 0.2s;
 }
 
@@ -1388,7 +1388,7 @@
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  background: #fff;
+  background: var(--toggle-knob);
   box-shadow: 0 1px 3px rgb(0 0 0 / 0.2);
   transition: transform 0.2s;
 }
@@ -1533,7 +1533,7 @@
 .day-grid button.is-on,
 .cal-day.is-on {
   background: var(--emerald);
-  color: #fff;
+  color: var(--on-accent);
 }
 
 .color-row {
@@ -1712,7 +1712,7 @@
   width: 100%;
   border-radius: 26px;
   overflow: hidden;
-  box-shadow: 0 10px 28px rgb(48 66 34 / 0.18);
+  box-shadow: var(--shadow-scene);
 }
 
 .onboard-scene-bg {
@@ -1965,7 +1965,7 @@
   top: 6%;
   border-radius: 18px 18px 6px 18px;
   background: var(--emerald);
-  color: #fff;
+  color: var(--on-accent);
   font-weight: 600;
 }
 
@@ -2012,7 +2012,7 @@
   border-radius: 50%;
   overflow: hidden;
   border: 6px solid var(--surface);
-  box-shadow: 0 12px 30px rgb(48 66 34 / 0.2);
+  box-shadow: var(--shadow-scene);
 }
 
 .porthole-window img {
@@ -2108,4 +2108,19 @@
 .import-transfers {
   align-self: flex-start;
   padding: 4px 0;
+}
+
+/* ——— Акценты тем (3.32): только свет и цвет, размеры и расположение не меняются ——— */
+/* Аврора: главная кнопка мягко светится, активный раздел меню подсвечен */
+:root[data-theme='aurora'] .btn-primary {
+  box-shadow: var(--glass-shadow), 0 0 22px rgb(62 224 208 / 0.28), 0 0 34px rgb(124 92 255 / 0.22);
+}
+
+:root[data-theme='aurora'] .nav-item.is-active .nav-icon {
+  box-shadow: 0 0 14px rgb(62 224 208 / 0.35);
+}
+
+/* Графит: плотный металлический край у главной кнопки */
+:root[data-theme='dark'] .btn-primary {
+  box-shadow: 0 8px 22px rgb(240 124 22 / 0.25), inset 0 1px 0 rgb(255 230 200 / 0.5), inset 0 -2px 0 rgb(120 50 0 / 0.35);
 }

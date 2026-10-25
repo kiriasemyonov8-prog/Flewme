@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useLayoutEffect, useState } from 'react';
 import { BottomNav, type Tab } from './ui/BottomNav';
 import { ChatScreen, SectionHeader } from './screens/ChatScreen';
 import { FinanceScreen } from './screens/FinanceScreen';
@@ -14,6 +14,8 @@ import { useFinance } from './state/useFinance';
 import { useKeyboardInset } from './state/useKeyboard';
 import './ui/app.css';
 
+const THEME_COLORS = { light: '#EDF5F2', dark: '#16191D', aurora: '#151036' } as const;
+
 /** Первый вход (SPEC 3.27): приветствие → карточки → анкета; из профиля — сразу анкета. Один раз (3.29). */
 type Phase = 'welcome' | 'cards' | 'quiz' | 'quizFromProfile' | 'app';
 
@@ -25,6 +27,15 @@ export function App() {
   // Чат, открытый из раздела по иконке Флюми; повторное нажатие возвращает в этот раздел.
   const [chatOpen, setChatOpen] = useState(false);
   useKeyboardInset();
+
+  // Тема оформления (3.32): атрибут на <html> и цвет строки состояния телефона.
+  const theme = store.meta.theme ?? 'light';
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    if (theme === 'light') delete root.dataset.theme;
+    else root.dataset.theme = theme;
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', THEME_COLORS[theme]);
+  }, [theme]);
   const chat = useChat(store);
   const mood = currentMood(store);
 

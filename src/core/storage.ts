@@ -15,7 +15,11 @@ export interface AppMeta {
   lastBackupOn?: ISODate;
   /** Когда человек ответил «Позже» на напоминание о копии. */
   backupNudgeOn?: ISODate;
+  /** Оформление (3.32): светлая, тёмная «Графит» или творческая «Аврора». */
+  theme?: ThemeId;
 }
+
+export type ThemeId = 'light' | 'dark' | 'aurora';
 
 interface StoredState {
   app: 'flyumi';
