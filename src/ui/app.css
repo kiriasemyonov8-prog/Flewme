@@ -633,8 +633,22 @@
 /* Иконка Флюми слева сверху в разделах и в чате */
 .section-header {
   display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+/* Иконка Флюми и полоска «Спросить Флюми» рядом (3.34) */
+.section-header-row {
+  display: flex;
   align-items: center;
   gap: 10px;
+  width: 100%;
+}
+
+.section-header-row .chat-strip {
+  flex: 1;
+  min-width: 0;
 }
 
 .section-header .demo-badge {

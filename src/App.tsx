@@ -12,6 +12,7 @@ import { demoData } from './core/demo';
 import { currentMood, useChat } from './state/useChat';
 import { useFinance } from './state/useFinance';
 import { useKeyboardInset } from './state/useKeyboard';
+import { useVoiceInput } from './state/useVoiceInput';
 import './ui/app.css';
 
 const THEME_COLORS = { light: '#EDF5F2', dark: '#16191D', aurora: '#151036' } as const;
@@ -38,15 +39,19 @@ export function App() {
   }, [theme]);
   const chat = useChat(store);
   const mood = currentMood(store);
+  // Голосовой вопрос из шапки раздела: запись начинается по нажатию и продолжается в чате.
+  const voice = useVoiceInput(chat);
 
   function changeTab(next: Tab) {
     if (next === 'home') setHomeSignal((n) => n + 1);
+    voice.stop();
     setChatOpen(false);
     setTab(next);
     window.scrollTo({ top: 0 });
   }
 
   function toggleChat(open: boolean) {
+    if (!open) voice.stop();
     setChatOpen(open);
     window.scrollTo({ top: 0 });
   }
@@ -102,10 +107,10 @@ export function App() {
         {tab === 'home' && (
           <HomeScreen store={store} chatStore={chat} homeSignal={homeSignal} onOpenProfile={() => changeTab('profile')} />
         )}
-        {tab !== 'home' && chatOpen && <ChatScreen chat={chat} mood={mood} onBack={() => toggleChat(false)} />}
+        {tab !== 'home' && chatOpen && <ChatScreen chat={chat} voice={voice} mood={mood} onBack={() => toggleChat(false)} />}
         {tab !== 'home' && !chatOpen && (
           <>
-            <SectionHeader mood={mood} isDemo={store.data.isDemo} onOpenChat={() => toggleChat(true)} />
+            <SectionHeader mood={mood} isDemo={store.data.isDemo} voice={voice} onOpenChat={() => toggleChat(true)} />
             {tab === 'finance' && <FinanceScreen store={store} />}
             {tab === 'purchase' && <PurchaseScreen store={store} />}
             {tab === 'profile' && <ProfileScreen store={store} onStartOnboarding={() => setPhase('quizFromProfile')} />}
