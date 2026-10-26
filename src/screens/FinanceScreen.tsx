@@ -6,6 +6,7 @@ import { monthOf } from '../core/dates';
 import { formatDayMonth, formatPermille, formatRub, formatRubWhole, pluralDays } from '../core/format';
 import { goalBalance, goalBehind, goalProgress, goalsByPriority, monthlyForGoal } from '../core/goals';
 import { normalMonthlySaving } from '../core/month';
+import { freeNow } from '../core/purchase';
 import { addTransfer, createGoal, removeGoal, upsertGoal } from '../core/money-moves';
 import type { Kopecks } from '../core/money';
 import { incomeName, monthExpenses, receivedIncomes, upcomingIncomes } from '../core/overview';
@@ -158,7 +159,7 @@ export function FinanceScreen({ store }: { store: FinanceStore }) {
                 <Wallet size={18} aria-hidden />
                 <span>Свободно до {formatDayMonth(limit.horizon)}</span>
               </div>
-              <div className="big-value num">{formatRub(limit.free > 0 ? limit.free : (0 as Kopecks))}</div>
+              <div className="big-value num">{formatRub(freeNow(data, limit, today))}</div>
               <div className="stat-note">
                 {formatRubWhole(limit.dailyLimit)} в день · {limit.days} {pluralDays(limit.days)}
               </div>

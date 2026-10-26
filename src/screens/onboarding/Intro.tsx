@@ -1,7 +1,7 @@
 // Первый вход (SPEC 3.27): приветствие и три карточки о функциях.
 import { Mic, ShoppingBag, Smile, Wallet, type LucideIcon } from 'lucide-react';
 import { useRef, useState } from 'react';
-import { characterBackground, Robot, type Expression } from '../../assets/character';
+import { Robot, type Expression } from '../../assets/character';
 
 /**
  * Приветствие: комната Флюми в круглом «иллюминаторе», а сам Флюми крупно стоит перед ним —
@@ -10,11 +10,10 @@ import { characterBackground, Robot, type Expression } from '../../assets/charac
 function Porthole() {
   return (
     <div className="hero-porthole">
-      <div className="porthole-window">
-        <img src={characterBackground} alt="" draggable={false} />
-      </div>
+      {/* фон комнаты — свой у каждой темы (3.33), задаётся в теме */}
+      <div className="porthole-window scene-room" />
       <div className="porthole-robot">
-        <Robot expression="joy" />
+        <Robot expression="joy" lit />
       </div>
     </div>
   );

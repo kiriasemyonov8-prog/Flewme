@@ -2,7 +2,7 @@
 // Срок накопления недостающего считается выбранным пользователем способом (SPEC 3.9):
 // «из отложенного» — тем, что откладывается в накопления за период (SavePlan.amount ≈ месяц);
 // «урезать лимит» — долей дневного лимита (CONFIG.purchase.cutLimitPercent) каждый день.
-import { currentBalance } from './balance';
+import { currentBalance, spentTodayMain } from './balance';
 import { CONFIG } from './config';
 import { addDays, type ISODate } from './dates';
 import { goalProgressPermille } from './goal';
@@ -64,6 +64,14 @@ export function daysToSave(amount: Kopecks, monthly: Kopecks): number | null {
   if (amount <= 0) return 0;
   if (monthly <= 0) return null;
   return ceilDiv(amount * CONFIG.purchase.monthDays, monthly);
+}
+
+/**
+ * Свободно на основном счёте прямо сейчас (3.33): свободное на начало дня минус сегодняшние траты.
+ * Запись траты сразу уменьшает сумму в «Финансах» и «Покупке», удаление — возвращает.
+ */
+export function freeNow(data: FinanceData, limit: LimitOk, today: ISODate): Kopecks {
+  return max(ZERO, sub(limit.free, spentTodayMain(data, today)));
 }
 
 function otherAccountsTotal(data: FinanceData, today: ISODate): Kopecks {
@@ -133,7 +141,7 @@ export function evaluatePurchase(
   method: SavingMethod = 'setAside',
 ): PurchaseResult {
   const cfg = CONFIG.purchase;
-  const free = limit ? max(ZERO, limit.free) : ZERO;
+  const free = limit ? freeNow(data, limit, today) : ZERO;
   const savings = savingsTotal(data, today);
   const others = otherAccountsTotal(data, today);
   // Скорость накопления недостающего на покупку — выбранным способом.

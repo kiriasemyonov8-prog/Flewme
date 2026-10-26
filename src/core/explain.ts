@@ -5,7 +5,7 @@ import type { ISODate } from './dates';
 import type { LimitOk } from './limit';
 import { ZERO, max, sub, sum, type Kopecks } from './money';
 import type { PurchaseResult, PurchaseSource } from './purchase';
-import { savingsTotal } from './purchase';
+import { freeNow, savingsTotal } from './purchase';
 import type { FinanceData } from './types';
 
 export type LineKind = 'start' | 'minus' | 'plus' | 'total';
@@ -59,7 +59,7 @@ export function explainAvailable(
   const lines: ExplainLine[] = [];
   const useMain = source.kind === 'main' || source.kind === 'all';
   const useSavings = source.kind === 'savings' || source.kind === 'all';
-  if (useMain) lines.push({ kind: 'plus', label: 'Свободно на основном счёте', amount: max(ZERO, limit.free) });
+  if (useMain) lines.push({ kind: 'plus', label: 'Свободно на основном счёте', amount: freeNow(data, limit, today) });
   if (useSavings) lines.push({ kind: 'plus', label: 'Накопления', amount: savingsTotal(data, today) });
   for (const a of data.accounts) {
     if (a.kind !== 'other') continue;

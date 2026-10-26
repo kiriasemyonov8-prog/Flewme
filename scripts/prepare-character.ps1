@@ -1,7 +1,7 @@
-# Готовит картинки персонажа и фона для приложения из файлов автора в docs\character.
+﻿# Готовит картинки персонажа и фона для приложения из файлов автора в docs\character.
 # Запуск из папки проекта:  powershell -ExecutionPolicy Bypass -File scripts\prepare-character.ps1
 # Что делает: обрезает пустые прозрачные поля, уменьшает до размеров для телефона,
-# у фона убирает полупрозрачную жёлтую кайму по краю. Оригиналы не трогает.
+# у фонов комнат (по одному на тему) достраивает прозрачные уголки. Оригиналы не трогает.
 Add-Type -AssemblyName System.Drawing
 
 $src = Join-Path $PSScriptRoot '..\docs\character'
@@ -51,21 +51,40 @@ foreach ($n in 'calm', 'happy', 'sad') {
   $b.Dispose()
 }
 
-# Фон без прозрачности: JPEG намного легче. Скруглённые углы рисует CSS (радиус больше,
-# чем у картинки), поэтому прозрачные уголки заливаем цветом стены — они всё равно будут срезаны.
-$bg = [System.Drawing.Bitmap]::FromFile((Resolve-Path (Join-Path $src 'character background 1.PNG')).Path)
-$crop = Get-Bounds $bg 200
-$w = 1100; $h = [int]($crop.Height * $w / $crop.Width)
-$o = New-Object System.Drawing.Bitmap $w, $h
-$g = [System.Drawing.Graphics]::FromImage($o)
-$g.Clear([System.Drawing.Color]::FromArgb(151, 167, 120))
-$g.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
-$g.DrawImage($bg, (New-Object System.Drawing.Rectangle 0, 0, $w, $h), $crop, [System.Drawing.GraphicsUnit]::Pixel)
-$g.Dispose()
+# Комната под каждую тему (3.33). Без прозрачности: JPEG намного легче.
+# Берём полосу комнаты (строки, где картинка непрозрачна), прозрачные скруглённые уголки
+# достраиваем ближайшим цветом той же строки — скругление рисует CSS.
+$rooms = [ordered]@{ 'СВЕТЛАЯ.PNG' = 'bg-light.jpg'; 'ГРАФИТ.PNG' = 'bg-dark.jpg'; 'АВРОРА.PNG' = 'bg-aurora.jpg' }
 $jpeg = [System.Drawing.Imaging.ImageCodecInfo]::GetImageEncoders() | Where-Object { $_.MimeType -eq 'image/jpeg' }
 $params = New-Object System.Drawing.Imaging.EncoderParameters 1
 $params.Param[0] = New-Object System.Drawing.Imaging.EncoderParameter ([System.Drawing.Imaging.Encoder]::Quality), 84L
-$out = Join-Path $dst 'background.jpg'
-$o.Save($out, $jpeg, $params)
-$o.Dispose(); $bg.Dispose()
-"background.jpg: {0}x{1}, {2} КБ" -f $w, $h, [int]((Get-Item $out).Length / 1KB)
+foreach ($name in $rooms.Keys) {
+  $bg = [System.Drawing.Bitmap]::FromFile((Resolve-Path (Join-Path $src $name)).Path)
+  # полоса комнаты — строки, где непрозрачна середина картинки (в каждой есть цвет для уголков)
+  $mid = [int]($bg.Width / 2); $top = 0; $bottom = $bg.Height - 1
+  while ($bg.GetPixel($mid, $top).A -lt 250) { $top++ }
+  while ($bg.GetPixel($mid, $bottom).A -lt 250) { $bottom-- }
+  $room = $bg.Clone((New-Object System.Drawing.Rectangle 0, $top, $bg.Width, ($bottom - $top + 1)), [System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
+  $bg.Dispose()
+  $rw = $room.Width
+  for ($y = 0; $y -lt $room.Height; $y++) {
+    if ($room.GetPixel(0, $y).A -lt 250) {
+      $x = 0; while ($x -lt $rw -and $room.GetPixel($x, $y).A -lt 250) { $x++ }
+      if ($x -lt $rw) { $c = $room.GetPixel($x, $y); for ($i = 0; $i -lt $x; $i++) { $room.SetPixel($i, $y, $c) } }
+    }
+    if ($room.GetPixel($rw - 1, $y).A -lt 250) {
+      $x = $rw - 1; while ($x -ge 0 -and $room.GetPixel($x, $y).A -lt 250) { $x-- }
+      if ($x -ge 0) { $c = $room.GetPixel($x, $y); for ($i = $x + 1; $i -lt $rw; $i++) { $room.SetPixel($i, $y, $c) } }
+    }
+  }
+  $w = 1600; $h = [int]($room.Height * $w / $rw)
+  $o = New-Object System.Drawing.Bitmap $w, $h
+  $g = [System.Drawing.Graphics]::FromImage($o)
+  $g.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
+  $g.DrawImage($room, 0, 0, $w, $h)
+  $g.Dispose(); $room.Dispose()
+  $out = Join-Path $dst $rooms[$name]
+  $o.Save($out, $jpeg, $params)
+  $o.Dispose()
+  "{0}: {1}x{2}, {3} КБ" -f $rooms[$name], $w, $h, [int]((Get-Item $out).Length / 1KB)
+}

@@ -1,6 +1,7 @@
 ﻿import { Download, FileSpreadsheet, Minus, Plus, Upload } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { confirmIncome } from '../core/actions';
+import { currentBalance } from '../core/balance';
 import { addDays, type ISODate } from '../core/dates';
 import type { Kopecks } from '../core/money';
 import { repeatText } from '../ui/Repeat';
@@ -83,7 +84,7 @@ export function ProfileScreen({ store, onStartOnboarding }: { store: FinanceStor
     onToggle: () => setOpenSection((cur) => (cur === id ? null : id)),
   });
   const accountsSummary = main
-    ? `основной ${formatRub(main.amount)} · всего счетов: ${data.accounts.length}`
+    ? `основной ${formatRub(currentBalance(main, data, today))} · всего счетов: ${data.accounts.length}`
     : 'основной счёт не указан';
   const moneySummary =
     [
@@ -105,10 +106,10 @@ export function ProfileScreen({ store, onStartOnboarding }: { store: FinanceStor
         title={account?.name ?? title}
         sub={
           account
-            ? `${kind === 'main' ? 'основной, ' : kind === 'savings' ? 'накопительный, ' : ''}на ${formatDayMonth(account.asOf)}`
+            ? `${kind === 'main' ? 'основной, ' : kind === 'savings' ? 'накопительный, ' : ''}сверен ${formatDayMonth(account.asOf)}`
             : 'не указан'
         }
-        value={account ? formatRub(account.amount) : 'Указать'}
+        value={account ? formatRub(currentBalance(account, data, today)) : 'Указать'}
         onClick={() => setOpen({ kind: 'balance', accountKind: kind, account })}
       />
     );
@@ -460,6 +461,11 @@ export function ProfileScreen({ store, onStartOnboarding }: { store: FinanceStor
             const gap = open.account ? P.balanceGap(data, open.account.id, amount, asOf, paidOnAsOf) : null;
             update((d) => {
               if (!open.account) return P.addAccount(d, open.accountKind, amount, asOf, now, newId(), name, paidOnAsOf);
+              // Сумму не меняли (например, только переименовали) — остаток не пересверяем,
+              // чтобы сегодняшние траты и резервы не «откатились» (3.33).
+              const unchanged =
+                asOf === today && !receivedIncome && paidOnAsOf.length === 0 && amount === currentBalance(open.account, d, today);
+              if (unchanged) return P.renameAccount(d, open.account.id, name);
               let next = P.setAccountBalance(d, open.account.id, amount, asOf, now, paidOnAsOf);
               // Доход уже в этой сумме: подтверждаем его без второго прибавления (3.25).
               if (receivedIncome) {

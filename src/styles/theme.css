@@ -29,6 +29,13 @@
   --thought-ink: #33441c;
   --thought-shadow: 0 1px 0 rgb(255 255 255 / 0.45);
 
+  /* Комната Флюми и свет на его корпусе (3.33): солнце из окна слева, зелёный отсвет от растений */
+  --scene-room: url('../assets/character/bg-light.jpg');
+  --robot-light:
+    linear-gradient(100deg, rgb(255 246 214 / 0.95) 0%, rgb(255 246 214 / 0) 42%),
+    linear-gradient(0deg, rgb(150 190 90 / 0.4) 0%, rgb(150 190 90 / 0) 28%);
+  --robot-floor-shadow: rgb(70 90 40 / 0.35);
+
   --orange: #ff8a1f;
   --orange-soft: #fff1e2;
   --warn-ink: #a3500a;
@@ -109,6 +116,14 @@
   --thought-ink: #f4f5f6;
   --thought-shadow: 0 1px 2px rgb(0 0 0 / 0.55);
 
+  /* Комната: закатный свет из окна слева, оранжевые лампы сверху, корпус в полумраке */
+  --scene-room: url('../assets/character/bg-dark.jpg');
+  --robot-light:
+    linear-gradient(100deg, rgb(255 168 80 / 0.9) 0%, rgb(255 168 80 / 0) 40%),
+    radial-gradient(70% 28% at 50% 0%, rgb(255 150 50 / 0.55) 0%, rgb(255 150 50 / 0) 100%),
+    linear-gradient(rgb(18 20 24 / 0.45), rgb(18 20 24 / 0.45));
+  --robot-floor-shadow: rgb(0 0 0 / 0.55);
+
   --orange: #ff9433;
   --orange-soft: rgb(255 148 51 / 0.14);
   --warn-ink: #ffb26b;
@@ -178,6 +193,14 @@
 
   --thought-ink: #ffffff;
   --thought-shadow: 0 0 10px rgb(62 224 208 / 0.55), 0 1px 2px rgb(14 11 34 / 0.6);
+
+  /* Комната: ночное фиолетовое небо в окне слева, бирюзовая подсветка справа, корпус в синеве */
+  --scene-room: url('../assets/character/bg-aurora.jpg');
+  --robot-light:
+    linear-gradient(100deg, rgb(150 130 255 / 0.85) 0%, rgb(150 130 255 / 0) 40%),
+    linear-gradient(260deg, rgb(62 224 208 / 0.75) 0%, rgb(62 224 208 / 0) 38%),
+    linear-gradient(rgb(20 30 75 / 0.45), rgb(20 30 75 / 0.45));
+  --robot-floor-shadow: rgb(0 0 20 / 0.55);
 
   --orange: #ffb35c;
   --orange-soft: rgb(255 179 92 / 0.15);

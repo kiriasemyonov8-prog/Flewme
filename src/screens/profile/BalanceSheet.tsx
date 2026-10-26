@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { incomesToConfirm } from '../../core/actions';
+import { currentBalance } from '../../core/balance';
 import type { ISODate } from '../../core/dates';
 import { formatRub, parseRubInput, toRubInput } from '../../core/format';
 import type { Kopecks } from '../../core/money';
@@ -43,7 +44,8 @@ export function BalanceSheet({
   onDelete?: () => void;
   onClose: () => void;
 }) {
-  const [text, setText] = useState(account ? toRubInput(account.amount) : '');
+  // Сейчас на счёте — с учётом записанных трат и доходов, а не сумма последней сверки (3.33)
+  const [text, setText] = useState(account ? toRubInput(currentBalance(account, data, today)) : '');
   const [asOf, setAsOf] = useState(today);
   const [name, setName] = useState(account?.name ?? '');
   const [paid, setPaid] = useState<string[]>([]);

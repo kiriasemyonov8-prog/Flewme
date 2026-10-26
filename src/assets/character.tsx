@@ -14,11 +14,13 @@ export const EXPRESSION_LABELS: Record<Expression, string> = {
 
 const IMAGES: Record<Expression, string> = { calm, joy: happy, sad };
 
-export { default as characterBackground } from './character/background.jpg';
-
-/** Флюми в полный рост; height — высота в пикселях (без неё — по размеру контейнера). */
-export function Robot({ expression, height }: { expression: Expression; height?: number }) {
-  return (
+/**
+ * Флюми в полный рост; height — высота в пикселях (без неё — по размеру контейнера).
+ * lit — Флюми стоит в комнате: на корпус ложатся блики света от окна и ламп этой темы (3.33).
+ * Блик — слой поверх картинки, вырезанный по её силуэту, цвет берётся из темы (--robot-light).
+ */
+export function Robot({ expression, height, lit = false }: { expression: Expression; height?: number; lit?: boolean }) {
+  const img = (
     <img
       className="robot-img"
       src={IMAGES[expression]}
@@ -26,6 +28,14 @@ export function Robot({ expression, height }: { expression: Expression; height?:
       style={height ? { height } : undefined}
       draggable={false}
     />
+  );
+  if (!lit) return img;
+  const mask = `url(${IMAGES[expression]})`;
+  return (
+    <span className="robot-lit">
+      {img}
+      <span className="robot-light" aria-hidden style={{ WebkitMaskImage: mask, maskImage: mask }} />
+    </span>
   );
 }
 

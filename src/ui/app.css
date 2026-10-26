@@ -263,8 +263,17 @@
   /* до первого замера — исходная пропорция фона */
   --sw: var(--scene-w);
   --sh: calc(var(--scene-w) / 2.16);
-  /* Флюми — на полу слева от центра фона, но не ближе 5 % к краю сцены */
-  --robot-left: max(calc(var(--sw) * 0.05), calc(var(--sw) * 0.5 - var(--sh) * 0.7));
+  /*
+   * Комната (3.33): фон по высоте сцены, ширина = высота × 2,305 (пропорция картинки).
+   * Левый край — окно с городом — виден всегда, лишнее срезается справа. Сдвиг влево (--ox)
+   * появляется, только если иначе на пустой стене не останется места для мыслей (--room-t).
+   * Пустая стена в картинке — от 22 до 76 % её ширины, пол — на 86 % высоты.
+   */
+  --room-w: calc(var(--sh) * 2.305);
+  --room-t: max(120px, calc(var(--sw) * 0.36));
+  --ox: clamp(0px, calc(var(--room-w) * 0.46 + var(--room-t) + 10px - var(--sw)), calc(var(--room-w) - var(--sw)));
+  /* Флюми стоит у окна, перед диванчиком: левый край на 20 % ширины комнаты */
+  --robot-left: calc(var(--room-w) * 0.2 - var(--ox));
   position: relative;
   flex: 1 1 auto;
   min-height: calc(var(--scene-w) / 2.16);
@@ -280,30 +289,45 @@
   box-shadow: var(--shadow-scene);
 }
 
-.scene-bg img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+/* Фон комнаты своей темы (3.33): картинка задаётся в теме (--scene-room) */
+.scene-room {
+  position: absolute;
+  inset: 0;
+  background-image: var(--scene-room);
+  background-repeat: no-repeat;
+}
+
+.scene-bg .scene-room {
+  background-size: var(--room-w) 100%;
+  background-position: calc(-1 * var(--ox)) 0;
 }
 
 .scene-thought {
   position: absolute;
   /* свободная стена: от правого края Флюми до полки с книгами (≈ 77 % ширины фона) */
   /* от правого края Флюми (его ширина ≈ 0,6·sh) с небольшим зазором */
-  left: calc(var(--robot-left) + var(--sh) * 0.6 + 6px);
-  right: calc(var(--sw) * 0.5 - var(--sh) * 0.58);
-  top: calc(var(--sh) * 0.12);
-  bottom: calc(var(--sh) * 0.18);
+  /* от правого края Флюми (его ширина ≈ 0,59·высоты сцены) до конца пустой стены или края сцены */
+  left: calc(var(--robot-left) + var(--sh) * 0.59 + 6px);
+  right: max(12px, calc(var(--sw) - (var(--room-w) * 0.76 - var(--ox))));
+  top: calc(var(--sh) * 0.1);
+  bottom: calc(var(--sh) * 0.17);
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   justify-content: center;
   color: var(--thought-ink);
   font-family: 'Caveat', cursive;
   font-weight: 500;
-  font-size: clamp(14px, min(var(--sw) * 0.05, var(--sh) * 0.105), 22px);
-  line-height: 1.05;
+  /* размер подбирается под фразу (fitThought), пока не подобран — по высоте сцены */
+  font-size: var(--thought-size, clamp(16px, calc(var(--sh) * 0.11), 26px));
+  line-height: 1.08;
   text-shadow: var(--thought-shadow);
+  overflow-wrap: break-word;
+}
+
+/* Цифры — тем же рукописным шрифтом, жирно */
+.scene-thought b {
+  font-weight: 700;
 }
 
 .scene-thought p {
@@ -327,6 +351,39 @@
   left: var(--robot-left);
   bottom: calc(var(--sh) * -0.04);
   height: calc(var(--sh) * 0.9);
+  isolation: isolate;
+}
+
+/* Тень под Флюми на полу комнаты — чтобы он стоял в ней, а не висел поверх */
+.scene-robot::before {
+  content: '';
+  position: absolute;
+  left: 10%;
+  right: 10%;
+  bottom: 3%;
+  height: 9%;
+  z-index: -1;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, var(--robot-floor-shadow), transparent);
+}
+
+/* Блики света комнаты на корпусе Флюми (3.33): слой по силуэту, цвет из темы */
+.robot-lit {
+  position: relative;
+  display: inline-block;
+  height: 100%;
+}
+
+.robot-light {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: var(--robot-light);
+  mix-blend-mode: soft-light;
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
 }
 
 .robot-img {
@@ -632,6 +689,19 @@
 
 .kb-open .sheet-backdrop {
   bottom: var(--kb);
+}
+
+/* Шторка целиком помещается над клавиатурой, а не уходит верхом за экран (3.33) */
+.kb-open .sheet {
+  max-height: calc(100% - 8px);
+}
+
+/*
+ * Пока печатают название (счёта, категории…), кнопки цифр приложения не нужны:
+ * прячем их, чтобы над клавиатурой телефона было видно само поле.
+ */
+.kb-open .sheet:has(.text-field:focus) .keypad {
+  display: none;
 }
 
 /* «Улёт» вверх: всё, кроме робота и навигации */
@@ -2015,12 +2085,10 @@
   box-shadow: var(--shadow-scene);
 }
 
-.porthole-window img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: 12% 100%;
-  display: block;
+.porthole-window.scene-room {
+  inset: auto auto 3% 50%;
+  background-size: cover;
+  background-position: 12% 100%;
 }
 
 .porthole-robot {

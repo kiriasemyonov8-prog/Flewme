@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { addExpense } from './actions';
+import { addExpense, removeExpense } from './actions';
 import { demoData } from './demo';
 import { explainAvailable, explainLimit, explainMainAccount, type ExplainLine } from './explain';
 import { computeLimit, type LimitOk } from './limit';
 import { rub } from './money';
-import { evaluatePurchase } from './purchase';
+import { evaluatePurchase, freeNow } from './purchase';
 
 const T = '2026-10-21';
 
@@ -60,5 +60,18 @@ describe('объяснение «Доступно» в покупке', () => {
       ['Не хватает', rub(68_500)],
     ]);
     expect(r.available).toBe(rub(131_500));
+  });
+});
+
+describe('трата сразу видна в «Покупке» и «Финансах» (3.33)', () => {
+  const d = demoData(T, 1000);
+  const withSpend = addExpense(d, { amount: rub(500), accountId: 'main', categoryId: 'food', date: T }, 'x', 2000);
+
+  it('после траты 500 свободно на основном 31 000, после её удаления снова 31 500', () => {
+    const limit = computeLimit(withSpend, T) as LimitOk;
+    expect(freeNow(withSpend, limit, T)).toBe(rub(31_000));
+    expect(evaluatePurchase(withSpend, limit, rub(100), { kind: 'main' }, T).available).toBe(rub(31_000));
+    const back = removeExpense(withSpend, withSpend.expenses.at(-1)!.id);
+    expect(freeNow(back, computeLimit(back, T) as LimitOk, T)).toBe(rub(31_500));
   });
 });

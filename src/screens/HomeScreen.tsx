@@ -1,6 +1,6 @@
 import { CalendarDays, MessageCircle, Wallet } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
-import { characterBackground, Robot } from '../assets/character';
+import { Robot } from '../assets/character';
 import {
   confirmPaymentPaid,
   delayIncome,
@@ -55,6 +55,27 @@ interface Reminder {
   onLater?: () => void;
 }
 
+/**
+ * Мысли Флюми — самым крупным размером, при котором фраза целиком помещается на пустой стене (3.33):
+ * от потолка сцены вниз, пока текст не перестанет вылезать по высоте и ширине.
+ */
+function fitThought(box: HTMLElement | null, sceneHeight: number) {
+  if (!box) return;
+  let size = Math.round(Math.min(30, Math.max(16, sceneHeight * 0.13)));
+  box.style.setProperty('--thought-size', `${size}px`);
+  while (size > 13 && (box.scrollHeight > box.clientHeight + 1 || box.scrollWidth > box.clientWidth + 1)) {
+    size -= 1;
+    box.style.setProperty('--thought-size', `${size}px`);
+  }
+}
+
+/** Числа в мыслях — тем же рукописным шрифтом, но жирно, чтобы читались (3.33). */
+function withBoldNumbers(text: string) {
+  return text
+    .split(/(d[ds   ]*(?:[.,]d+)?(?:s?₽)?)/)
+    .map((part, i) => (i % 2 ? <b key={i}>{part}</b> : part));
+}
+
 /** Высота Флюми, когда он уменьшается в иконку чата. */
 const ROBOT_ICON = 64;
 
@@ -79,6 +100,7 @@ export function HomeScreen({
   const [dismissed, setDismissed] = useState<string[]>([]);
   const robotRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<HTMLDivElement>(null);
+  const thoughtRef = useRef<HTMLDivElement>(null);
 
   // Размер сцены гибкий; Флюми и мысли расставляются в долях её ширины и высоты (--sw, --sh).
   useLayoutEffect(() => {
@@ -87,6 +109,7 @@ export function HomeScreen({
     const apply = () => {
       el.style.setProperty('--sw', `${el.clientWidth}px`);
       el.style.setProperty('--sh', `${el.clientHeight}px`);
+      fitThought(thoughtRef.current, el.clientHeight);
     };
     apply();
     const ro = new ResizeObserver(apply);
@@ -268,6 +291,13 @@ export function HomeScreen({
     phrase = 'Бывает. Завтра чуть строже, и всё выровняется.';
   }
 
+  // Новая фраза — заново подбираем размер; и ещё раз, когда догрузится рукописный шрифт.
+  useLayoutEffect(() => {
+    const fit = () => fitThought(thoughtRef.current, sceneRef.current?.clientHeight ?? 0);
+    fit();
+    void document.fonts?.ready.then(fit);
+  }, [phrase]);
+
   return (
     <div className={`home${chat ? ' is-chat' : ''}`}>
       {data.isDemo && (
@@ -345,9 +375,10 @@ export function HomeScreen({
       {/* Сцена: фон комнаты, Флюми на нём (как на референсе IMG_2987), мысли рукописным текстом справа. */}
       <div ref={sceneRef} className="scene">
         <div className="scene-bg fly" style={fly(2)}>
-          <img src={characterBackground} alt="" draggable={false} />
-          <div className="scene-thought" aria-live="polite">
-            <p>{phrase}</p>
+          {/* фон комнаты — свой у каждой темы (3.33); левый край виден, лишнее срезается справа */}
+          <div className="scene-room" />
+          <div ref={thoughtRef} className="scene-thought" aria-live="polite">
+            <p>{withBoldNumbers(phrase)}</p>
             <svg className="scene-arrow" viewBox="0 0 60 34" aria-hidden="true">
               <path d="M54 4 C 44 22, 26 28, 8 24" />
               <path d="M16 16 L 7 24 L 17 30" />
@@ -360,7 +391,7 @@ export function HomeScreen({
               <Robot expression={mood} />
             </button>
           ) : (
-            <Robot expression={mood} />
+            <Robot expression={mood} lit />
           )}
         </div>
       </div>

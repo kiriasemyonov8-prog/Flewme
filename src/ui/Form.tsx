@@ -118,7 +118,17 @@ export function TextField({
   return (
     <label className="text-label">
       <span className="field-label">{label}</span>
-      <input className="text-field" value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} />
+      <input
+        className="text-field"
+        value={value}
+        placeholder={placeholder}
+        onChange={(e) => onChange(e.target.value)}
+        // клавиатура телефона выезжает не сразу — потом показываем поле над ней
+        onFocus={(e) => {
+          const el = e.currentTarget;
+          setTimeout(() => el.scrollIntoView({ block: 'center', behavior: 'smooth' }), 300);
+        }}
+      />
     </label>
   );
 }
