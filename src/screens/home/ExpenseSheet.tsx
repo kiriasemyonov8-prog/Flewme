@@ -79,10 +79,14 @@ export function ExpenseSheet({
 
   return (
     <Sheet title={initialDate === today ? 'Записать трату' : `Трата за ${formatDayMonth(initialDate)}`} onClose={onClose}>
-      <AmountDisplay value={text} />
+      {/* Сумма закреплена сверху окна: её видно, пока нажимают цифры внизу (3.35) */}
+      <div className="sheet-sticky-amount">
+        <AmountDisplay value={text} />
+      </div>
       {error && <p className="field-error">{error}</p>}
 
-      <div className="chips" role="radiogroup" aria-label="Категория">
+      {/* Категории — одной строкой с прокруткой вбок, чтобы окно помещалось на экране (3.35) */}
+      <div className="chips chips-scroll" role="radiogroup" aria-label="Категория">
         {data.categories.map((c) => (
           <button
             key={c.id}
