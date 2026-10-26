@@ -1,5 +1,5 @@
 import { CalendarDays, MessageCircle, Wallet } from 'lucide-react';
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
+import { Fragment, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { Robot } from '../assets/character';
 import {
   confirmPaymentPaid,
@@ -72,8 +72,28 @@ function fitThought(box: HTMLElement | null, sceneHeight: number) {
 /** Числа в мыслях — тем же рукописным шрифтом, но жирно, чтобы читались (3.33). */
 function withBoldNumbers(text: string) {
   return text
-    .split(/(d[ds   ]*(?:[.,]d+)?(?:s?₽)?)/)
-    .map((part, i) => (i % 2 ? <b key={i}>{part}</b> : part));
+    .split(/(\d[\d\s\u00a0\u2009\u202f]*(?:[.,]\d+)?(?:\s?₽)?)/)
+    .map((part, i) => {
+      const content = withHandRuble(part, i);
+      return i % 2 ? <b key={i}>{content}</b> : <Fragment key={i}>{content}</Fragment>;
+    });
+}
+
+/**
+ * В рукописном шрифте нет знака ₽ — браузер берёт его из другого шрифта, и он выбивается.
+ * Рисуем его сами: буква «Р» того же шрифта с чёрточкой поперёк ножки.
+ */
+function withHandRuble(text: string, key: number) {
+  return text.split('₽').flatMap((p, j) =>
+    j === 0
+      ? [p]
+      : [
+          <span key={`${key}-${j}`} className="hand-rub" role="img" aria-label="₽">
+            Р
+          </span>,
+          p,
+        ],
+  );
 }
 
 /** Высота Флюми, когда он уменьшается в иконку чата. */

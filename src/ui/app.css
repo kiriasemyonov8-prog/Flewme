@@ -330,6 +330,25 @@
   font-weight: 700;
 }
 
+/* Знак рубля от руки: «Р» рукописного шрифта и чёрточка поперёк ножки, наклонённая как росчерк (3.33) */
+.hand-rub {
+  position: relative;
+  display: inline-block;
+  margin-left: 0.08em;
+}
+
+.hand-rub::after {
+  content: '';
+  position: absolute;
+  left: -0.1em;
+  bottom: 0.3em;
+  width: 0.42em;
+  height: 0.075em;
+  border-radius: 0.05em;
+  background: currentColor;
+  transform: rotate(-6deg);
+}
+
 .scene-thought p {
   margin: 0;
 }
